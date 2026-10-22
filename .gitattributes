@@ -1,2 +1,6 @@
+# Check out text files with LF on every platform, so Prettier's check and byte-level tests give the
+# same result on Windows runners (which default to CRLF checkouts) as everywhere else.
+* text=auto eol=lf
+
 # Conformance fixtures are compared byte for byte, and some must stay CRLF on every checkout.
 packages/core/test/conformance/** -text
