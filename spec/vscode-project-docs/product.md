@@ -128,6 +128,7 @@ This was a quick survey on 2026-10-22, based on project pages, not hands-on test
 ## Constraints and context
 
 - **Publishing in both stores.** The extension goes to the VS Code Marketplace (and Open VSX later). The plugin goes to the Obsidian community store, which reads the plugin's `manifest.json` from the root of its GitHub repo. So the product spans separate repos: [vscode-project-docs](https://github.com/coreyx/vscode-project-docs) (the extension, and the home of this document) and [obsidian-project-docs](https://github.com/coreyx/obsidian-project-docs) (the plugin). Logic both need, such as the PRIVATE.md parser, is shared as a package rather than copied.
+- **Part of SpecDevShip.** Project Docs belongs to the SpecDevShip project, and its npm packages are published under the `@specdevship` scope.
 - **Follows an external standard.** PRIVATE.md behaviour follows the [PRIVATE.md standard](https://github.com/coreyx/private-md-standard), which is maintained separately and shared with other repos. Project Docs implements it and does not redefine it. Agents encode (redact) and decode with an agent skill that ships with the standard, so this works in Claude Code, Obsidian's AI plugins or any other agent, without Project Docs having to own it.
 - **Platforms.** Desktop VS Code and desktop Obsidian, on Windows, macOS and Linux, plus WSL. Obsidian mobile isn't a target, since the repo isn't on the phone.
 - **Release quality before publishing.** Nothing is published until the release bar under Goals is met.
