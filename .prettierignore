@@ -1,0 +1,7 @@
+dist/
+coverage/
+node_modules/
+.vscode-test/
+package-lock.json
+packages/core/test/conformance/
+spec/

@@ -1,0 +1,2 @@
+# Conformance fixtures are compared byte for byte, and some must stay CRLF on every checkout.
+packages/core/test/conformance/** -text

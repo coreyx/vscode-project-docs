@@ -1,0 +1,30 @@
+# Project Docs
+
+Keep a repo's docs folder and a folder in an Obsidian vault in sync, on the same machine, without ever silently overwriting an edit. Private notes stay out of the repo, and [PRIVATE.md](https://github.com/coreyx/private-md-standard) documents can be read with their real values on both sides.
+
+Project Docs is part of SpecDevShip. It is under development; see [`spec/vscode-project-docs/`](spec/vscode-project-docs/) for the product definition, requirements and design.
+
+## Packages
+
+| Package                              | What it is                                                                                    |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| [`packages/core`](packages/core)     | `@specdevship/project-docs-core`: the sync engine, rules, link formats and PRIVATE.md decoder |
+| [`packages/cli`](packages/cli)       | `@specdevship/project-docs-cli`: the `project-docs` command                                   |
+| [`packages/vscode`](packages/vscode) | The VS Code extension                                                                         |
+
+The Obsidian plugin lives in [obsidian-project-docs](https://github.com/coreyx/obsidian-project-docs).
+
+## Development
+
+Requires Node 22 or newer.
+
+```sh
+npm install
+npm run build
+npm test
+npm run coverage
+```
+
+## License
+
+MIT

@@ -1,0 +1,25 @@
+{
+  "name": "@specdevship/project-docs-core",
+  "version": "0.0.0",
+  "description": "Sync engine, rules, link formats and PRIVATE.md decoder shared by Project Docs' VS Code extension, CLI and Obsidian plugin.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  }
+}

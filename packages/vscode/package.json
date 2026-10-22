@@ -1,0 +1,30 @@
+{
+  "name": "project-docs",
+  "displayName": "Project Docs",
+  "description": "Keep a repo's docs folder and an Obsidian vault folder in sync, with private notes kept out of the repo and PRIVATE.md decoding.",
+  "version": "0.0.0",
+  "publisher": "specdevship",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "vscode": "^1.134.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./dist/extension.cjs",
+  "browser": "./dist/web.js",
+  "activationEvents": [],
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@specdevship/project-docs-core": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.134.0"
+  }
+}

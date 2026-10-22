@@ -1,0 +1,22 @@
+{
+  "name": "@specdevship/project-docs-cli",
+  "version": "0.0.0",
+  "description": "Command-line sync for Project Docs, for agents and terminals working without VS Code.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "project-docs": "./dist/project-docs.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@specdevship/project-docs-core": "*"
+  }
+}

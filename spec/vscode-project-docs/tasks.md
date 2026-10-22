@@ -18,7 +18,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 ### Milestone 1: The repository builds and tests on every platform
 
-- [ ] **TASK-1: Set up the workspace**
+- [x] **TASK-1: Set up the workspace**
   - **Associated Acceptance Criteria**: none (project setup)
   - **Concrete Steps**:
     1. Create npm workspaces `packages/core`, `packages/cli` and `packages/vscode`. Name them `@specdevship/project-docs-core`, `@specdevship/project-docs-cli` and the extension `project-docs`.
