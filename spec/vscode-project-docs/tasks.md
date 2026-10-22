@@ -174,7 +174,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     5. Write `.project-docs/status.json` after every pass, with no real values.
     6. Retry failed writes on the next pass, and surface repeated failures.
 
-- [ ] **TASK-15: Add property-based and fault-injection tests**
+- [x] **TASK-15: Add property-based and fault-injection tests**
   - **Associated Acceptance Criteria**: `5.4`, `19.2`, `19.3`, `21.1`
   - **Concrete Steps**:
     1. Build a fast-check model that generates histories of edits, renames, deletes, rule changes, private moves and restarts on both sides, against real temporary folders.
