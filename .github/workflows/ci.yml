@@ -1,0 +1,96 @@
+# Lint, build and test on every platform Project Docs supports (REQ-16.1), and enforce the
+# coverage thresholds in vitest.config.ts (REQ-21.1).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # The oldest supported Node and the current LTS.
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run coverage
+      - name: Upload coverage report
+        if: always() && matrix.node == 22
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage/
+          if-no-files-found: ignore
+
+  extension:
+    name: extension integration (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # VS Code needs a display; Linux runners have none, so run it under a virtual one.
+      - name: Run extension tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:vscode --workspace project-docs --if-present
+      - name: Run extension tests
+        if: runner.os != 'Linux'
+        run: npm run test:vscode --workspace project-docs --if-present
+
+  wsl:
+    name: core tests inside WSL
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: wsl-bash {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Vampire/setup-wsl@v7
+        with:
+          distribution: Ubuntu-24.04
+          additional-packages: curl ca-certificates rsync
+      # setup-wsl runs commands as root, so no sudo.
+      - name: Install Node 22 in WSL
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+          apt-get install -y nodejs
+      # Tests run from the WSL filesystem, with a second fixture folder on the Windows drive, so
+      # they cover a repo in WSL linked to a vault on C: (REQ-2.0.4, REQ-4.0.2).
+      - name: Copy the checkout into the WSL filesystem
+        run: rsync -a --exclude node_modules ./ ~/project-docs/
+      - name: Test
+        env:
+          PROJECT_DOCS_TEST_WINDOWS_DIR: /mnt/c/project-docs-test
+          WSLENV: PROJECT_DOCS_TEST_WINDOWS_DIR/u
+        run: |
+          mkdir -p "$PROJECT_DOCS_TEST_WINDOWS_DIR"
+          cd ~/project-docs
+          npm ci
+          npm run build
+          npm test

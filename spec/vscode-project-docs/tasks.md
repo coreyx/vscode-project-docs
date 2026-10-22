@@ -28,7 +28,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     5. Add `LICENSE` (MIT, Corey Struzan), a `README.md` stub, `CHANGELOG.md` with `## [Unreleased]`, and `.gitignore`.
     6. Vendor the PRIVATE.md standard's `conformance/cases/` into `packages/core/test/conformance/`. Mark them `-text` in `.gitattributes`, and record the source commit in a `SOURCE` file.
 
-- [ ] **TASK-2: Set up CI on Windows, macOS, Linux and WSL**
+- [x] **TASK-2: Set up CI on Windows, macOS, Linux and WSL**
   - **Associated Acceptance Criteria**: `16.1`, `21.1`
   - **Concrete Steps**:
     1. Add a GitHub Actions workflow that runs lint, build and tests on `windows-latest`, `macos-latest` and `ubuntu-latest`, with the oldest supported Node (22) and the current LTS.
