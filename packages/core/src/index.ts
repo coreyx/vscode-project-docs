@@ -24,3 +24,5 @@ export * from "./log/index.js";
 export * from "./rules/index.js";
 
 export * from "./privatemd/index.js";
+
+export * from "./links/index.js";

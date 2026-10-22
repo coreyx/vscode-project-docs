@@ -116,7 +116,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     4. Implement `replaceRealValues`, the inverse used for the hold-back fix: longest real value first, with the standard's boundary rule.
     5. Add a differential test that runs the reference Python script against the TypeScript decoder on generated inputs, where Python is available in CI. Record any disagreement as a new conformance case.
 
-- [ ] **TASK-10: Add link parsing and conversion (`links/`)**
+- [x] **TASK-10: Add link parsing and conversion (`links/`)**
   - **Associated Acceptance Criteria**: `12.1`, `12.2`, `12.3`, `12.4`
   - **Concrete Steps**:
     1. Build code, inline-code and frontmatter ranges, plus Markdown links, with `mdast-util-from-markdown`, `micromark-extension-gfm` and `micromark-extension-frontmatter`.
