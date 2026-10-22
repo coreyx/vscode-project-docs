@@ -20,3 +20,5 @@ export * from "./state/index.js";
 export * from "./lock/index.js";
 
 export * from "./log/index.js";
+
+export * from "./rules/index.js";

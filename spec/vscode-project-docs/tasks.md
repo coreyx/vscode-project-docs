@@ -98,7 +98,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 ### Milestone 3: Rules, links and privacy checks work in isolation
 
-- [ ] **TASK-8: Add sync rules in frontmatter (`rules/`)**
+- [x] **TASK-8: Add sync rules in frontmatter (`rules/`)**
   - **Associated Acceptance Criteria**: `8.1`, `8.4`, `9.2`
   - **Concrete Steps**:
     1. Parse the frontmatter block's boundaries exactly, and read `project-docs` with the `yaml` Document API.
