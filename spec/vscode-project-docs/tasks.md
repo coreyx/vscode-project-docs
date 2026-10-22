@@ -38,7 +38,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 ### Milestone 2: The core can read and write both sides safely
 
-- [ ] **TASK-3: Add path handling (`paths/`)**
+- [x] **TASK-3: Add path handling (`paths/`)**
   - **Associated Acceptance Criteria**: `6.2`, `16.2`, `16.3`
   - **Concrete Steps**:
     1. Implement canonical keys: relative to the linked folder, `/` separators, Unicode NFC.
