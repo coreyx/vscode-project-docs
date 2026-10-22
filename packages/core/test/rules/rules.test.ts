@@ -5,6 +5,7 @@ import {
   isInvalidRule,
   readProperty,
   readRule,
+  removeProperties,
   setProperties,
   setRule,
   yamlScalar,
@@ -146,6 +147,25 @@ describe("setProperties and readProperty", () => {
     expect(readProperty(text, "c")).toEqual({ kind: "absent" });
     expect(readProperty("no block", "a")).toEqual({ kind: "absent" });
     expect(readProperty("---\na: : b\n  c\n---\n", "a")).toEqual({ kind: "invalid-yaml" });
+  });
+});
+
+describe("removeProperties", () => {
+  it("removes properties and their lines, leaving the rest byte-identical", () => {
+    const text =
+      "---\ntitle: x\r\nproject-docs-id: pd_1\r\ntags:\r\n  - a\r\nuid: pd_1\r\n---\r\nBody\r\n";
+    expect(removeProperties(text, ["project-docs-id", "uid", "absent"])).toBe(
+      "---\ntitle: x\r\ntags:\r\n  - a\r\n---\r\nBody\r\n",
+    );
+  });
+
+  it("leaves a file without frontmatter alone", () => {
+    expect(removeProperties("Body", ["uid"])).toBe("Body");
+  });
+
+  it("removes a property on the block's last line, without a final line break", () => {
+    expect(removeProperties("---\na: 1\nb: 2---\n", ["b"])).toBe("---\na: 1\nb: 2---\n");
+    expect(removeProperties("---\na: 1\nb: 2\n---\n", ["b"])).toBe("---\na: 1\n---\n");
   });
 });
 

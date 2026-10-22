@@ -223,7 +223,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     3. Set the VS Code engine floor (stable release six months before the first publish).
     4. Add an integration test that the web stub shows the message.
 
-- [ ] **TASK-20: Add the link service**
+- [x] **TASK-20: Add the link service**
   - **Associated Acceptance Criteria**: `1.1`, `1.2`, `1.4`, `1.5`, `2.5`
   - **Concrete Steps**:
     1. Read Obsidian's vault registry on Windows, macOS, Linux (including Flatpak and Snap paths) and from WSL through `/mnt/<drive>`.

@@ -28,7 +28,14 @@ export default defineConfig({
         "packages/cli/src/**/*.ts",
         "packages/vscode/src/**/*.ts",
       ],
-      exclude: ["packages/cli/src/bin.ts"],
+      exclude: [
+        "packages/cli/src/bin.ts",
+        // Code that only runs inside VS Code is exercised by the integration suite
+        // (`npm run test:vscode`), which Vitest's coverage can't see.
+        "packages/vscode/src/extension.ts",
+        "packages/vscode/src/web.ts",
+        "packages/vscode/src/**/commands.ts",
+      ],
       reporter: ["text", "html", "json-summary"],
       thresholds: {
         lines: 70,

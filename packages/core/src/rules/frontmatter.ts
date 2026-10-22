@@ -116,26 +116,57 @@ export function setProperties(text: string, properties: Readonly<Record<string, 
   const appended: string[] = [];
   for (const name of names) {
     const line = `${name}: ${yamlScalar(properties[name] ?? "")}`;
-    const { pair, ok } = topLevelPair(yaml, name);
-    if (!ok)
-      throw new FrontmatterError("the frontmatter isn't valid YAML, so it can't be edited safely");
-    if (!pair) {
+    const span = propertySpan(yaml, name);
+    if (!span) {
       appended.push(line);
       continue;
     }
-    const keyRange = (pair.key as Node).range;
-    if (!keyRange) throw new FrontmatterError(`can't locate ${name} in the frontmatter`);
-    const valueEnd = pair.value?.range?.[1] ?? keyRange[1];
-    // Replace from the start of the key's line to the end of the value's last line.
-    const lineStart = yaml.lastIndexOf("\n", keyRange[0] - 1) + 1;
-    const nextBreak = yaml.indexOf("\n", Math.max(valueEnd - 1, keyRange[1]));
-    const lineEnd =
-      nextBreak === -1 ? yaml.length : yaml[nextBreak - 1] === "\r" ? nextBreak - 1 : nextBreak;
-    yaml = yaml.slice(0, lineStart) + line + yaml.slice(lineEnd);
+    yaml = yaml.slice(0, span.lineStart) + line + yaml.slice(span.lineEnd);
   }
   if (appended.length > 0) {
     const needsBreak = yaml.length > 0 && !yaml.endsWith("\n");
     yaml += (needsBreak ? block.eol : "") + appended.join(block.eol) + block.eol;
+  }
+  return text.slice(0, block.yamlStart) + yaml + text.slice(block.yamlEnd);
+}
+
+/**
+ * Where a top-level property sits in a YAML block: from the start of its key's line to the end of
+ * its value's last line, not including the line break. Null when the property isn't there.
+ */
+function propertySpan(yaml: string, name: string): { lineStart: number; lineEnd: number } | null {
+  const { pair, ok } = topLevelPair(yaml, name);
+  if (!ok)
+    throw new FrontmatterError("the frontmatter isn't valid YAML, so it can't be edited safely");
+  if (!pair) return null;
+  const keyRange = (pair.key as Node).range;
+  if (!keyRange) throw new FrontmatterError(`can't locate ${name} in the frontmatter`);
+  const valueEnd = pair.value?.range?.[1] ?? keyRange[1];
+  const lineStart = yaml.lastIndexOf("\n", keyRange[0] - 1) + 1;
+  const nextBreak = yaml.indexOf("\n", Math.max(valueEnd - 1, keyRange[1]));
+  const lineEnd =
+    nextBreak === -1 ? yaml.length : yaml[nextBreak - 1] === "\r" ? nextBreak - 1 : nextBreak;
+  return { lineStart, lineEnd };
+}
+
+/**
+ * Removes top-level properties and their lines, leaving everything else byte-identical. Used when
+ * unlinking, to take the link properties back out of the link note (REQ-1.0.5).
+ */
+export function removeProperties(text: string, names: readonly string[]): string {
+  const block = findFrontmatter(text);
+  if (!block) return text;
+  let yaml = block.yaml;
+  for (const name of names) {
+    const span = propertySpan(yaml, name);
+    if (!span) continue;
+    // Take the line break after the property too, so no blank line is left behind.
+    const after = yaml.startsWith("\r\n", span.lineEnd)
+      ? 2
+      : yaml.startsWith("\n", span.lineEnd)
+        ? 1
+        : 0;
+    yaml = yaml.slice(0, span.lineStart) + yaml.slice(span.lineEnd + after);
   }
   return text.slice(0, block.yamlStart) + yaml + text.slice(block.yamlEnd);
 }

@@ -35,6 +35,26 @@
     }
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "projectDocs.link",
+        "title": "Link to Obsidian",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.unlink",
+        "title": "Unlink",
+        "category": "Project Docs"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "projectDocs.unlink",
+          "when": "projectDocs.linked"
+        }
+      ]
+    },
     "jsonValidation": [
       {
         "fileMatch": ".project-docs.json",
