@@ -60,6 +60,27 @@
         "command": "projectDocs.resume",
         "title": "Resume Sync",
         "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.proceedBulk",
+        "title": "Proceed With Waiting Changes",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.cancelBulk",
+        "title": "Cancel Waiting Changes",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.openConflict",
+        "title": "Resolve Conflict",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.resolveConflict",
+        "title": "Complete Merge",
+        "category": "Project Docs",
+        "icon": "$(check)"
       }
     ],
     "menus": {
@@ -79,6 +100,29 @@
         {
           "command": "projectDocs.resume",
           "when": "projectDocs.linked"
+        },
+        {
+          "command": "projectDocs.proceedBulk",
+          "when": "projectDocs.linked"
+        },
+        {
+          "command": "projectDocs.cancelBulk",
+          "when": "projectDocs.linked"
+        },
+        {
+          "command": "projectDocs.openConflict",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.resolveConflict",
+          "when": "resourcePath in projectDocs.mergeOutputs"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "projectDocs.resolveConflict",
+          "when": "resourcePath in projectDocs.mergeOutputs",
+          "group": "navigation"
         }
       ]
     },

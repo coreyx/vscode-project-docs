@@ -6,6 +6,13 @@ import * as vscode from "vscode";
 import { readLink, type SchedulerState } from "@specdevship/project-docs-core";
 import { linkRepo, offerRelink, unlinkRepo, vscodePrompter } from "./link/commands.js";
 import type { FlowResult, Prompter } from "./link/flow.js";
+import { CONFLICT_SCHEME, ConflictResolver, ConflictVersionProvider } from "./conflicts/merge.js";
+import {
+  BulkSummaryProvider,
+  ConflictNotifier,
+  SUMMARY_SCHEME,
+  promptBulk,
+} from "./conflicts/prompts.js";
 import { SyncController } from "./sync/controller.js";
 
 /** What the extension exposes to its integration tests. */
@@ -14,6 +21,8 @@ export interface ProjectDocsApi {
   unlink(repoRoot: string): Promise<boolean>;
   /** The running controller, if the workspace's repo is linked. */
   controller(): SyncController | null;
+  /** Opens and completes conflict resolutions. */
+  readonly conflicts: ConflictResolver;
 }
 
 /** The workspace's repo: the first folder, which is where Project Docs looks for a link. */
@@ -26,6 +35,16 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
   let controller: SyncController | null = null;
   const stateEmitter = new vscode.EventEmitter<SchedulerState>();
   context.subscriptions.push(stateEmitter, { dispose: () => controller?.dispose() });
+  const conflicts = new ConflictResolver(() => controller);
+  const notifier = new ConflictNotifier((key) => conflicts.open(key));
+  const summary = new BulkSummaryProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      CONFLICT_SCHEME,
+      new ConflictVersionProvider(() => controller?.linkedProject ?? null),
+    ),
+    vscode.workspace.registerTextDocumentContentProvider(SUMMARY_SCHEME, summary),
+  );
 
   const updateContext = async (repoRoot: string | undefined) => {
     const linked = repoRoot ? (await readLink(repoRoot)).state === "linked" : false;
@@ -38,10 +57,15 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     controller?.dispose();
     controller = new SyncController(repoRoot);
     controller.onDidChangeState((state) => stateEmitter.fire(state));
+    let previous: SchedulerState["state"] | null = null;
     controller.onDidChangeState((state) => {
       if (state.state === "error")
         void vscode.window.showErrorMessage(`Project Docs: ${state.message}`);
+      // Ask once each time a pass is stopped by the bulk guard, not on every repeat.
+      if (state.state === "bulk" && previous !== "bulk") void promptBulk(state, summary);
+      previous = state.state;
     });
+    controller.onDidPass((outcome) => notifier.onPass(outcome));
     await controller.start();
   };
 
@@ -67,6 +91,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
       return done;
     },
     controller: () => controller,
+    conflicts,
   };
 
   context.subscriptions.push(
@@ -90,6 +115,17 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     vscode.commands.registerCommand("projectDocs.syncNow", () => controller?.syncNow()),
     vscode.commands.registerCommand("projectDocs.pause", () => controller?.pause()),
     vscode.commands.registerCommand("projectDocs.resume", () => controller?.resume()),
+    vscode.commands.registerCommand("projectDocs.proceedBulk", () =>
+      controller?.syncNow({ allowBulk: true }),
+    ),
+    vscode.commands.registerCommand("projectDocs.cancelBulk", () => controller?.cancelBulk()),
+    vscode.commands.registerCommand("projectDocs.openConflict", (key: string) =>
+      conflicts.open(key),
+    ),
+    vscode.commands.registerCommand("projectDocs.resolveConflict", (uri?: vscode.Uri) => {
+      const target = uri ?? vscode.window.activeTextEditor?.document.uri;
+      return target ? conflicts.completeFromOutput(target.fsPath) : false;
+    }),
   );
 
   const repo = workspaceRepo();

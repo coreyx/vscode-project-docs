@@ -244,7 +244,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     3. Measure idle CPU over 60 seconds in an integration test (under 1%).
     4. Integration-test 2-second propagation on a local disk, and 10-second propagation from WSL to a vault on `C:` in the WSL CI job.
 
-- [ ] **TASK-22: Add conflict resolution and the bulk-change prompt**
+- [x] **TASK-22: Add conflict resolution and the bulk-change prompt**
   - **Associated Acceptance Criteria**: `5.2`, `5.3`, `7.1`, `7.2`
   - **Concrete Steps**:
     1. Implement `MergeOpener`:

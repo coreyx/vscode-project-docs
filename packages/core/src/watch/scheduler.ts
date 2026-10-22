@@ -201,6 +201,30 @@ export class SyncScheduler {
     }
   }
 
+  /**
+   * Runs `work` while holding the lock and with no pass in progress, such as writing a conflict's
+   * resolution, then syncs. Throws if this window doesn't hold the lock.
+   */
+  async exclusive<T>(work: (project: Project) => Promise<T>): Promise<T> {
+    while (this.running) await this.running;
+    if (!this.lock || !(await this.lock.heartbeat())) {
+      throw new Error(
+        "Another window or a CLI run is syncing this project; try there, or wait for it to finish.",
+      );
+    }
+    const run = work(this.options.project);
+    this.running = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    try {
+      return await run;
+    } finally {
+      this.running = null;
+      this.notify();
+    }
+  }
+
   /** Stops syncing until resumed (REQ-17.0.5). */
   pause(): void {
     this.paused = true;

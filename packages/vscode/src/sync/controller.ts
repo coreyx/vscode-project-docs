@@ -110,6 +110,12 @@ export class SyncController implements vscode.Disposable {
     return this.scheduler?.resume() ?? Promise.resolve();
   }
 
+  /** Runs `work` under the engine lock with no pass in progress, then syncs. */
+  exclusive<T>(work: (project: Project) => Promise<T>): Promise<T> {
+    if (!this.scheduler) return Promise.reject(new Error("Project Docs isn't syncing this repo."));
+    return this.scheduler.exclusive(work);
+  }
+
   cancelBulk(): Promise<void> {
     return this.scheduler?.cancelBulk() ?? Promise.resolve();
   }
