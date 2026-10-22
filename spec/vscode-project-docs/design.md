@@ -138,9 +138,16 @@ There are three commands over the core. `sync` takes the lock (owner `cli`), sca
 **What:**
 - Markdown is hashed, merged and stored as bases with LF line endings.
 - Each side's index entry remembers that side's line-ending style.
-- A write converts to the target side's recorded style, or the side's default for new files: CRLF where the side's filesystem is Windows, LF otherwise.
+- A write converts to the target side's recorded style.
+- A new file takes the style most of the target side's Markdown files already have in this pass's snapshot. A side with none, or a tie, gets LF. The operating system plays no part.
 
-**Why:** REQ-3.0.5 and 3.2. A Windows checkout with `core.autocrlf` must not look modified on every pass.
+**Why:** REQ-3.0.5, 3.2 and 3.5. A Windows checkout with `core.autocrlf` must not look modified on every pass. Following the side's own files handles every git setup without reading git's configuration:
+- A checkout with `core.autocrlf=true` is mostly CRLF, so new files match it.
+- A repo with `autocrlf=false` or `eol=lf` is LF, so no CRLF file is committed into it.
+- Obsidian's editor saves every note as LF on every platform, so vault files are LF and a CRLF note would only be converted on its next edit.
+- LF for an empty side is safe under every git setting.
+
+**Alternatives:** CRLF on a Windows filesystem (the first release's rule). It committed CRLF files into LF repos on Windows, and churned vault notes.
 
 ### 5. Guards run at plan time, and a held-back file freezes in both directions
 **What:**
@@ -229,7 +236,7 @@ Neither app can save a decoded document anywhere. Reading-view decoding changes 
 - If the note exists, the link properties (`project-docs-id`, `project-docs-repo`, optionally `uid`) are merged into its frontmatter by the `rules` writer.
 - The scanner tags it by path, so the guards always exclude it.
 
-**Why:** REQ-2.0.2, 2.0.3 and 2.0.8 to 2.0.11.
+**Why:** REQ-2.0.2, 2.0.3 and 2.0.8 to 2.0.13.
 
 ### 16. Commit hooks reuse the standard's reference implementation
 **What:** the extension bundles the standard's three scripts (MIT, attributed) and offers to run `python private_md.py install-hooks <repo>`. If Python isn't found, it explains that the hooks need Python, and doesn't install anything.
@@ -237,6 +244,33 @@ Neither app can save a decoded document anywhere. Reading-view decoding changes 
 - REQ-15.0.4 asks for the standard's hooks.
 - Reimplementing them in TypeScript would create a second checker to keep in sync with the standard.
 - The installed hooks need Python at commit time anyway.
+
+### 17. A note that stops being private waits for confirmation
+**What:**
+- The index already records every vault file the engine last saw as private: state `vaultOnly`, with its reasons (folder, marker or private-files list). When such a key now passes the guards, the planner doesn't copy it. It keeps the key `vaultOnly`, adds the reason "was private; waiting for confirmation", and reports a `was-private` notice with the fix `confirm-syncable`. Links to it stay private until then.
+- Rename detection (decision 3) also runs for `vaultOnly` keys. A file that appears with the hash of a private file that disappeared in the same pass is that private file moved, so it's held in the same way.
+- **Confirming in VS Code:** the Project Docs view's action asks, naming the note and the repo path it will be copied to. On confirmation, `confirmSyncable(project, key)` removes the key's `vaultOnly` entry, so the next pass treats it as a new vault file. The guards still apply to it then.
+- **Confirming in Obsidian:** the plugin's rule-change confirmation (REQ-9.0.4) also adds `{ path, sha256 }` of the changed note to `.project-docs/confirmations.json`. The engine accepts a held key whose current path and hash match an entry, so the user isn't asked twice. A stale entry (the note changed again) matches nothing, and the note is held as usual. The plugin removes entries once the note is synced or deleted.
+- **CLI:** reports the notice, and has no option to confirm it (REQ-10.0.8).
+
+**Why:** REQ-10.0.7 and 10.4 to 10.6. A marker removed by hand, or by an agent rewriting a note, would otherwise publish a private note with no prompt.
+
+**Limits, accepted:**
+- A private file that is edited and moved in the same pass has a new hash, so it isn't recognized as moved. Within `private/` the folder still protects it, and the plugin marks it on its next start.
+- After the engine's state is lost (decision 10) there's nothing to remember. The marker and the folder still protect what carries them.
+
+### 18. Deep links are turned on only with confirmation
+**What:**
+- The one-time offer, or the setting being turned on, opens a modal dialog listing both changes: the `deepLink` added to `.project-docs.json`, which is committed and reaches everyone who clones, and `uid: <project id>` added to the folder note at its vault path. "Make These Changes" writes both. Cancel writes neither and turns the setting back off if it was turned on by hand. Before the dialog, nothing is written.
+- When the committed setting is on (for example after a teammate's commit) and this machine's folder note has no `uid`, the extension asks once per project: "Add uid to your folder note?". Until a `uid` is there, "Open in Obsidian" uses `obsidian://open`.
+- Turning the setting off removes `deepLink` and leaves `uid` in the note, where it is harmless.
+
+**Why:** REQ-2.0.12, 2.0.13, 2.11 and 2.12. The first release wrote both changes as soon as the setting was on, including on a teammate's machine. Both changes are all-or-nothing because either alone gives a broken or unused link.
+
+### 19. An empty placeholder table means "nothing to protect yet"
+**What:** the decoder follows the version of the PRIVATE.md standard that accepts a well-formed `## Placeholders` table (heading, header row and separator) with no rows, and returns an empty mapping for it. Sync then runs with no real values to check. The decoded view shows the doc unchanged, with the note "PRIVATE.md has no placeholders yet". A missing heading, a missing or malformed table, or a duplicate placeholder stays an error (REQ-14.0.5). The standard's conformance cases and bundled scripts are re-vendored from that version.
+
+**Why:** REQ-15.0.6 and 15.4. Setup creates exactly that file (REQ-15.0.3). Under the earlier standard it was an error, so every pass after setup reported "PRIVATE.md can't be read". Only a table that is present and well-formed counts as empty, so a file that failed to parse still fails closed.
 
 ## Data model
 
@@ -292,6 +326,7 @@ The body gets an "Open repo in VS Code" link (`vscode://file/<path>`, or `vscode
 |---|---|---|
 | `status.json` | engine | `{ format, updatedAt, state: "idle"\|"syncing"\|"paused"\|"attention", items: [{ kind, path, reasons[], placeholder? }] }`. Never contains real values. |
 | `private-files.json` | plugin | `{ format, files: [{ path, sha256 }] }` |
+| `confirmations.json` | plugin | `{ format, files: [{ path, sha256 }] }`: notes the user agreed to un-private in Obsidian (decision 17). |
 
 ### Engine state: `<appdata>/project-docs/projects/<projectId>/`
 
@@ -395,6 +430,9 @@ function loadPlaceholders(privateMd: string): PrivateMdMapping;  // throws Priva
 function restore(text: string, mapping: PrivateMdMapping): string;
 function findRealValues(text: string, mapping: PrivateMdMapping): Finding[]; // placeholders only
 
+/** Releases a note held back because it was private, after the user confirms (decision 17). */
+function confirmSyncable(project: Project, key: string): Promise<boolean>;
+
 /** Links. */
 function convertWikilinks(markdown: string, resolve: LinkResolver): { text: string; unconvertible: LinkRef[] };
 function linkTargets(markdown: string, resolve: LinkResolver): LinkTarget[];
@@ -488,7 +526,10 @@ Exit codes:
 | Non-UTF-8 Markdown, or a file over 5 MB | Skipped by the scanner, and reported. | 16.0.4, 16.4, 20.3 |
 | Symlink or junction | Not followed; reported. | 16.0.5 |
 | Invalid `project-docs` value | `skip` with the value in the reason. | 8.0.2, 8.4 |
-| Un-privating a note | Plugin confirmation (`RuleMenu`). The engine sees an ordinary vault change afterwards. | 9.0.4, 9.3 |
+| Un-privating a note | Plugin confirmation (`RuleMenu`), recorded in `confirmations.json` so the engine syncs it without asking again (decision 17). | 9.0.4, 9.3, 10.6 |
+| A private note's marker removed by hand, or an unmarked file moved out of `private/` | Held back as `was-private` until confirmed in VS Code or Obsidian (decision 17). | 10.0.7, 10.0.8, 10.4, 10.5 |
+| Deep-link setting on, but no `uid` in this machine's folder note | Asks before adding it; `obsidian://open` meanwhile (decision 18). | 2.0.13, 2.12 |
+| PRIVATE.md with an empty placeholder table | Valid, nothing to protect (decision 19). | 15.0.6, 15.4 |
 | A private file arrives while Obsidian is closed | The engine excludes it by folder (10.0.1). The plugin marks it on start. | 10.0.4, 10.0.6, 10.3 |
 | An attachment moved out of the private folder and edited elsewhere | Not covered by the private-files list. Recorded as an open question in product.md, and accepted for the first release. | — |
 | Wikilink target missing or ambiguous | Left as written, and reported as unconvertible. | 12.0.2 |
@@ -503,7 +544,7 @@ Exit codes:
 | Requirement | Design coverage |
 |---|---|
 | REQ-1 Link a project | `LinkService`; decision 10 (first sync); error table (nesting) |
-| REQ-2 Link record and agent discovery | Data model (link files, link note); `records/`; decisions 15 and 16; `projectDocs.openInObsidian`; WSL translation in `paths/` |
+| REQ-2 Link record and agent discovery | Data model (link files, link note); `records/`; decisions 15, 16 and 18; `projectDocs.openInObsidian`; WSL translation in `paths/` |
 | REQ-3 Two-way sync | `scan/`, `plan/`, `exec/`; `SideFs.writeAtomic`; decision 4; never-synced names in `guards/` |
 | REQ-4 Detecting changes | `WatcherService`, the poller, the periodic rescan in `SyncController`; first-pass reconciliation on open |
 | REQ-5 Merging and conflicts | `merge/`; decision table; decision 13; conflict store |
@@ -511,12 +552,12 @@ Exit codes:
 | REQ-7 Bulk-change guard | Decision 12; `pending-bulk.json`; CLI exit code 2 |
 | REQ-8 Sync rules | `rules/`; rule modifiers on the decision table |
 | REQ-9 Rule changes with the mouse | Extension `RuleMenu` and `StatusBar`; plugin `RuleMenu`; `setRule` |
-| REQ-10 Private notes | `guards/` (folder and marker); plugin `PrivateMarker`; decision 9 |
+| REQ-10 Private notes | `guards/` (folder and marker); plugin `PrivateMarker`; decisions 9 and 17; `confirmations.json` |
 | REQ-11 Non-Markdown files | `settings.syncAttachments`; whole-file copy and conflict; plugin `PrivateFilesList`; guards on the list |
 | REQ-12 Links between docs | `links/`; decision 6; `keepLinksAsWritten` |
 | REQ-13 Keeping private content out | `guards/`; decision 5; `Diagnostics`; real-value replacement |
 | REQ-14 Decoded views | `privatemd/`; decision 14; extension `DecodedView`; plugin `DecodedView` |
-| REQ-15 PRIVATE.md discoverability | `PrivateMdSetup`; walkthrough; decision 16; editor-title toggle |
+| REQ-15 PRIVATE.md discoverability | `PrivateMdSetup`; walkthrough; decisions 16 and 19; editor-title toggle |
 | REQ-16 Platform parity | `paths/` portability and case handling; `SideFs.isWindowsFs` and `caseInsensitive`; scanner skips; CI matrix (tech.md) |
 | REQ-17 Status and problems | `status.json`; `StatusBar`; `ProblemsView`; plugin `StatusReader`; `log/` redaction |
 | REQ-18 CLI | `packages/cli`; lock owner; exit codes |

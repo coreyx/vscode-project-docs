@@ -314,6 +314,42 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     2. Write the CLI's `README.md`.
     3. Run the agent test: a fresh agent session is given only a linked repo, and asked to find and update a vault-only note. Record the transcript summary and result in the walkthrough.
 
+### Milestone 10: Review changes are in before the plugin is specified
+
+The changes agreed after the first review: a safeguard for notes that stop being private, line endings that follow each side, deep links turned on only with confirmation, and the empty placeholder table.
+
+- [ ] **TASK-32: Hold back notes that stop being private**
+  - **Associated Acceptance Criteria**: `10.4`, `10.5`
+  - **Concrete Steps**:
+    1. In the planner, hold a `vaultOnly` key that now passes the guards: keep it `vaultOnly`, add the "waiting for confirmation" reason, and report a `was-private` notice with the fix `confirm-syncable` (design decision 17).
+    2. Extend rename detection to `vaultOnly` keys, so a private file moved out of `private/` with an unchanged hash is held too.
+    3. Read `.project-docs/confirmations.json`, and release a held key whose current path and hash match an entry. Add its format to the core's `/status` entry point, so the plugin can write it.
+    4. Add `confirmSyncable(project, key)`, and a "Sync to Repo…" action on the problem in the Project Docs view, with a modal confirmation that names the note and its repo path.
+    5. Make the CLI report the notice, with no way to confirm it.
+    6. Unit tests for the planner cases (marker removed, moved out unmarked, edited and moved, a matching and a stale confirmation), and an integration test for the VS Code confirmation.
+
+- [ ] **TASK-33: Give new files the line endings their side already uses**
+  - **Associated Acceptance Criteria**: `3.2`, `3.5`
+  - **Concrete Steps**:
+    1. Change the planner's default for a new file to the majority line ending of the target side's Markdown files in the snapshot, LF when there are none or on a tie (design decision 4).
+    2. Unit tests: an LF repo and a CRLF repo on a Windows filesystem, an empty side, a tie, and the vault on every filesystem. Existing files keep their own line endings.
+
+- [ ] **TASK-34: Ask before turning deep links on**
+  - **Associated Acceptance Criteria**: `2.6`, `2.7`, `2.11`, `2.12`
+  - **Concrete Steps**:
+    1. Replace the automatic write in `ObsidianLinks.reconcile()` with the modal dialog of design decision 18, listing both changes, and writing both or neither.
+    2. When the committed setting is on and this machine's folder note has no `uid`, ask once per project before adding it, and make "Open in Obsidian" fall back to `obsidian://open` until it's there.
+    3. Turning the setting off removes `deepLink` and leaves `uid` in place.
+    4. Integration tests for confirm, cancel, a teammate's commit, and turning it off.
+
+- [ ] **TASK-35: Accept an empty placeholder table**
+  - **Associated Acceptance Criteria**: `15.4`, `14.1`, `14.4`
+  - **Concrete Steps**:
+    1. Once the PRIVATE.md standard allows a well-formed empty table (a separate spec in `private-md-standard`), re-vendor its conformance cases and the bundled scripts, and record the new source commit.
+    2. Make the decoder return an empty mapping for that table, and replace the engine's special case for it (design decision 19).
+    3. Show the "PRIVATE.md has no placeholders yet" note in the decoded view.
+    4. Tests: the new conformance cases, a sync pass straight after setup, and the decoded view on an empty table and on a missing heading.
+
 ### Milestone 8: The Obsidian plugin is specified and built against the core
 
 - [ ] **TASK-29: Publish a prerelease of the core**
@@ -324,10 +360,10 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     3. Document the plugin-facing API in the core's README.
 
 - [ ] **TASK-30: Hand the plugin off to its own spec**
-  - **Associated Acceptance Criteria**: `9.1`, `9.3`, `10.1`, `10.3`, `11.3`, `14.3`, `15.3`, `17.2`, `2.10`
+  - **Associated Acceptance Criteria**: `9.1`, `9.3`, `10.1`, `10.3`, `10.6`, `11.3`, `14.3`, `15.3`, `17.2`, `2.10`
   - **Concrete Steps**:
     1. Create a spec folder in `obsidian-project-docs` with a light-tier plan or full-tier documents, as `idea-analysis` decides there. It links back to this spec's `product.md`, `requirements.md` and `design.md` rather than restating them.
-    2. List the acceptance criteria the plugin owns: the ones above, and the plugin side of 2.4 and 2.8.
+    2. List the acceptance criteria the plugin owns: the ones above, and the plugin side of 2.4 and 2.8. 10.6 needs the plugin to write `confirmations.json` (design decision 17) when the user un-privates a note.
     3. Make the first plugin task the reading-view decoding prototype (design decision 14).
     4. Track the plugin spec's completion here. This task is done when the plugin's spec is implemented and its walkthrough records those criteria as passing.
 
@@ -338,4 +374,5 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
   - **Concrete Steps**:
     1. Install the built extension and plugin on Windows, macOS, Linux, and Windows with a WSL repo. Run every acceptance criterion in `requirements.md` end to end, and record pass or fail in a release checklist.
     2. Fix or explicitly defer (with your agreement) anything that fails, before publishing.
-    3. Publish the extension to the VS Code Marketplace and `@specdevship/project-docs-cli` to npm, release the core as `1.0.0`, and submit the plugin to the Obsidian community store.
+    3. Resolve the `trash` package's audit advisory (braces, through `trash` → globby) before anything is published. Only the CLI depends on `trash`, and it calls it with `glob: false`, but the advisory still shows in `npm audit`.
+    4. Publish the extension to the VS Code Marketplace and `@specdevship/project-docs-cli` to npm, release the core as `1.0.0`, and submit the plugin to the Obsidian community store.

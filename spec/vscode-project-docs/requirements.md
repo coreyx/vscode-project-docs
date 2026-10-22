@@ -88,6 +88,8 @@ Terms used throughout:
 - **2.0.9 (Optional Feature)**: Where the setting is off, the "Open in Obsidian" command shall use Obsidian's built-in `obsidian://open` link, built from the machine-local link file and never written to a committed file.
 - **2.0.10 (Ubiquitous)**: Deep links shall be a convenience for people only. The machine-local link file remains the source of the vault path for the sync engine, the command-line tool and agents.
 - **2.0.11 (Ubiquitous)**: The user documentation (the extension's README, the setting's description, and the plugin's README) shall explain that `uid: <project id>` belongs in the project folder's **folder note**. That anchors the deep link to the project folder rather than to an arbitrary note, so it keeps working however the folder's contents change. Anyone adding the `uid` by hand should put it there.
+- **2.0.12 (Event-Driven)**: When the user turns the deep-link setting on, the system shall first list the changes it will make (the deep link added to the committed link file, which everyone who clones the repo gets, and the `uid` added to the vault's folder note), and shall make both or neither, as the user confirms or cancels.
+- **2.0.13 (Unwanted Behavior)**: If the committed setting is on but this machine's folder note has no `uid` (for example, a teammate turned the setting on), then the system shall ask before adding the `uid`, and until it is added, "Open in Obsidian" shall use the `obsidian://open` link of 2.0.9.
 
 #### Acceptance Criteria
 - **2.1**: After linking, the committed link file contains no absolute path, no user name and no vault name. A test scans it for the drive letter, the home folder and the vault's name, and finds none.
@@ -103,6 +105,8 @@ Terms used throughout:
 - **2.8**: Linking creates the link note as the folder note (`Projects/<repo>/<repo>.md` by default). When a folder note already exists, its content is kept and only the link properties are added.
 - **2.9**: The link note never appears in the repo, even if its sync rule is set to `sync`.
 - **2.10**: The extension's README, the deep-link setting's description and the plugin's README each state that `uid: <project id>` belongs in the project folder's folder note.
+- **2.11**: Accepting the deep-link offer shows both changes before anything is written. Cancelling leaves `.project-docs.json` and the folder note byte-identical; confirming makes both changes.
+- **2.12**: Pulling a `.project-docs.json` with the setting on into a clone whose folder note has no `uid` writes nothing until the user agrees, and "Open in Obsidian" meanwhile opens the folder note through `obsidian://open`.
 
 ### REQ-3: Two-way sync of Markdown
 
@@ -114,7 +118,7 @@ Terms used throughout:
 - **3.0.2 (Ubiquitous)**: The system shall propagate a change within 2 seconds of the file being saved, where the filesystem supports change notification, and within 10 seconds where it must poll (REQ-4).
 - **3.0.3 (Ubiquitous)**: The system shall treat files whose extension is `.md` as Markdown.
 - **3.0.4 (Ubiquitous)**: The system shall write each file on the receiving side atomically, so that an app reading it never sees a partly written file.
-- **3.0.5 (Ubiquitous)**: The system shall preserve each side's line-ending style for a file. Content is compared without regard to line endings, and a file is written in the line endings it already has on that side, or the side's default for a new file.
+- **3.0.5 (Ubiquitous)**: The system shall preserve each side's line-ending style for a file. Content is compared without regard to line endings, and a file is written in the line endings it already has on that side. A new file is written in the line endings most of that side's existing Markdown files use, or LF when the side has none, whatever the operating system.
 - **3.0.6 (Ubiquitous)**: The system shall never sync `PRIVATE.md`, `PRIVATE.example.md` or `*.private.md` files, in either direction, whatever their location or sync rule.
 
 #### Acceptance Criteria
@@ -122,6 +126,7 @@ Terms used throughout:
 - **3.2**: A file that is CRLF in the repo and LF in the vault keeps those line endings after edits on both sides sync.
 - **3.3**: A reader polling a file while it is being synced never observes a truncated or partial file (verified by a stress test that compares every read with a complete version).
 - **3.4**: `PRIVATE.md`, `PRIVATE.example.md` and `notes.private.md` placed in the docs folder never appear in the vault, and the same names placed in the vault never appear in the repo.
+- **3.5**: On Windows, a new note created in Obsidian reaches a repo whose docs are LF as an LF file, and reaches a repo whose docs are mostly CRLF as a CRLF file. A new repo doc reaches the vault as an LF file on every operating system.
 
 ### REQ-4: Detecting changes, including while closed
 
@@ -248,11 +253,16 @@ Terms used throughout:
 - **10.0.4 (Event-Driven)**: When Obsidian starts, the plugin shall mark any Markdown file in the private subfolder that arrived while Obsidian was closed and lacks the marker.
 - **10.0.5 (Event-Driven)**: When a private note is moved out of the private subfolder, the system shall keep its `private` marker.
 - **10.0.6 (Unwanted Behavior)**: If the sync engine finds a file in the private subfolder without the marker (for example, while Obsidian is closed), then it shall still not sync it, per 10.0.1.
+- **10.0.7 (Unwanted Behavior)**: If a vault file the engine last saw as private (by its folder, its marker or the private-files list) becomes syncable without the confirmation of 9.0.4, for example because its marker was removed by hand or it was moved out of the private subfolder with a file manager, then the system shall hold it back, report that it was private, and copy it into the repo only after the user confirms in VS Code or Obsidian, naming the note and stating that it will be copied into the repo.
+- **10.0.8 (Ubiquitous)**: The command-line tool shall report a note held back under 10.0.7, and shall offer no way to confirm it, so that an agent can't publish a private note by mistake.
 
 #### Acceptance Criteria
 - **10.1**: A note created in `private/` has `project-docs: private` within 2 seconds and never appears in the repo.
 - **10.2**: Moving a private note from `private/` to the vault folder's root keeps it out of the repo.
 - **10.3**: A file copied into `private/` with a file manager while Obsidian is closed gets its marker on Obsidian's next start, and never reaches the repo in the meantime.
+- **10.4**: Deleting the `project-docs: private` line from a private note in a text editor holds the note back: it doesn't reach the repo, VS Code's Project Docs view offers to sync it, and confirming copies it into the repo, while cancelling leaves it held back.
+- **10.5**: Moving an unmarked file out of `private/` with a file manager holds it back in the same way, and `project-docs sync` reports it without copying it.
+- **10.6**: Un-privating a note from the Obsidian plugin's menu (9.3) asks once, and the note then syncs without a second confirmation in VS Code.
 
 ### REQ-11: Files other than Markdown
 
@@ -337,11 +347,13 @@ Terms used throughout:
 - **15.0.3 (Event-Driven)**: When the user runs "Project Docs: Set up PRIVATE.md" in a repo without one, the system shall create `PRIVATE.md` with an empty `## Placeholders` table and `PRIVATE.example.md`, and add `PRIVATE.md` and `*.private.md` to `.gitignore`.
 - **15.0.4 (Event-Driven)**: When a repo with a PRIVATE.md is linked, the system shall offer once to install the standard's commit hooks, which the user can accept or dismiss permanently.
 - **15.0.5 (Ubiquitous)**: The decoded/coded toggle shall be reachable from the editor title bar in VS Code, and from the note's header in Obsidian, without using a command.
+- **15.0.6 (State-Driven)**: While a repo's PRIVATE.md has a well-formed `## Placeholders` table with no rows, as setup creates it, the system shall treat it as valid with nothing to protect: sync proceeds normally, and the decoded view shows the doc unchanged with a note that PRIVATE.md has no placeholders yet. This follows the version of the PRIVATE.md standard that allows an empty table.
 
 #### Acceptance Criteria
 - **15.1**: On a fresh install, the walkthrough appears in VS Code's Welcome page and covers linking and PRIVATE.md.
 - **15.2**: "Set up PRIVATE.md" produces both files and the `.gitignore` entries, and `git status` shows `PRIVATE.example.md` but not `PRIVATE.md`.
 - **15.3**: The toggle is visible on a coded doc in both apps without opening any menu.
+- **15.4**: Straight after "Set up PRIVATE.md", a sync pass reports no PRIVATE.md problem, and toggling decoded on a doc shows it unchanged with the "no placeholders yet" note. Removing the table's heading instead shows the error of 14.0.5.
 
 ### REQ-16: The same behavior on every platform
 
