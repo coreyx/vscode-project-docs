@@ -18,3 +18,5 @@ export * from "./scan/index.js";
 export * from "./state/index.js";
 
 export * from "./lock/index.js";
+
+export * from "./log/index.js";

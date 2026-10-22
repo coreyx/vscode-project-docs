@@ -89,7 +89,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
        - return `LockHeldBy` with the owner.
     5. Test that two processes contend correctly, a killed holder's lock is taken over, and deleting the state folder causes no file deletions in the following pass.
 
-- [ ] **TASK-7: Add the redacting logger (`log/`)**
+- [x] **TASK-7: Add the redacting logger (`log/`)**
   - **Associated Acceptance Criteria**: `17.3`
   - **Concrete Steps**:
     1. Implement a rotating file logger in the state folder.
