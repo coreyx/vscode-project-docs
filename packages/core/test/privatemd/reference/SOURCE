@@ -1,0 +1,4 @@
+private_md.py is the reference implementation of the PRIVATE.md standard, copied from
+https://github.com/coreyx/private-md-standard (skills/private-md/scripts/private_md.py) at commit
+af386e1fa0645fcde3e3a3f413fcfc60c6201435, under the MIT License, Copyright (c) 2026 Corey Struzan.
+It is used only by the differential test, which compares the TypeScript decoder against it.

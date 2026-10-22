@@ -107,7 +107,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     4. Implement a generic property merge for the link note's properties, reused by TASK-16.
     5. Test byte-identity outside the property across files with and without frontmatter, with CRLF, comments and unusual YAML.
 
-- [ ] **TASK-9: Port the PRIVATE.md decoder and value finder (`privatemd/`)**
+- [x] **TASK-9: Port the PRIVATE.md decoder and value finder (`privatemd/`)**
   - **Associated Acceptance Criteria**: `14.1`, `13.3`
   - **Concrete Steps**:
     1. Port `load_placeholders`, `parse_code_span`, `placeholder_pattern` (`[\p{L}\p{N}]` boundaries) and `restore` from the reference implementation, with errors carrying the standard's `kind`s.
