@@ -263,7 +263,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     2. Add a `projectDocs.problems` tree with one item per conflict, held-back change, skip and invalid rule, each with its resolve action.
     3. Add "Show log", which opens the redacted log.
 
-- [ ] **TASK-24: Add rule controls in VS Code**
+- [x] **TASK-24: Add rule controls in VS Code**
   - **Associated Acceptance Criteria**: `9.1`, `9.2`
   - **Concrete Steps**:
     1. Add an Explorer context submenu for `.md` files in the docs folder (`sync`, `repo-to-vault`, `repo-only`), and the current file's rule in the status bar, with a picker on click.

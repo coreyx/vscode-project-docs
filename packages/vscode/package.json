@@ -91,6 +91,38 @@
         "command": "projectDocs.showLog",
         "title": "Show Log",
         "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.setRule",
+        "title": "Change Sync Rule",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.setRule.sync",
+        "title": "sync",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.setRule.repoToVault",
+        "title": "repo-to-vault",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.setRule.repoOnly",
+        "title": "repo-only",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.trashRepoCopy",
+        "title": "Move Repo Copy to Trash",
+        "category": "Project Docs",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "projectDocs.trashVaultCopy",
+        "title": "Move Vault Copy to Trash",
+        "category": "Project Docs",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -134,6 +166,30 @@
         {
           "command": "projectDocs.showLog",
           "when": "projectDocs.linked"
+        },
+        {
+          "command": "projectDocs.setRule",
+          "when": "projectDocs.linked && resourceExtname == .md"
+        },
+        {
+          "command": "projectDocs.setRule.sync",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.setRule.repoToVault",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.setRule.repoOnly",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.trashRepoCopy",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.trashVaultCopy",
+          "when": "false"
         }
       ],
       "editor/title": [
@@ -141,6 +197,39 @@
           "command": "projectDocs.resolveConflict",
           "when": "resourcePath in projectDocs.mergeOutputs",
           "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "projectDocs.ruleMenu",
+          "when": "projectDocs.linked && resourceExtname == .md && !explorerResourceIsFolder",
+          "group": "7_modification@9"
+        }
+      ],
+      "projectDocs.ruleMenu": [
+        {
+          "command": "projectDocs.setRule.sync",
+          "group": "rules@1"
+        },
+        {
+          "command": "projectDocs.setRule.repoToVault",
+          "group": "rules@2"
+        },
+        {
+          "command": "projectDocs.setRule.repoOnly",
+          "group": "rules@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "projectDocs.trashRepoCopy",
+          "when": "view == projectDocs.problems && viewItem == projectDocs.problem.no-longer-synced",
+          "group": "inline"
+        },
+        {
+          "command": "projectDocs.trashVaultCopy",
+          "when": "view == projectDocs.problems && viewItem == projectDocs.problem.repo-only-vault-copy",
+          "group": "inline"
         }
       ]
     },
@@ -163,6 +252,12 @@
       {
         "fileMatch": ".project-docs.json",
         "url": "./schemas/project-docs.schema.json"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "projectDocs.ruleMenu",
+        "label": "Project Docs Sync Rule"
       }
     ]
   },

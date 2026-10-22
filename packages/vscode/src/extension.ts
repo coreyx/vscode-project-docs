@@ -14,6 +14,7 @@ import {
   SUMMARY_SCHEME,
   promptBulk,
 } from "./conflicts/prompts.js";
+import { RuleControls } from "./rules/controls.js";
 import { SyncController } from "./sync/controller.js";
 import { ProblemsView, StatusBar } from "./ui/views.js";
 
@@ -27,6 +28,8 @@ export interface ProjectDocsApi {
   readonly conflicts: ConflictResolver;
   /** The Project Docs view's contents. */
   readonly problems: ProblemsView;
+  /** The sync rule controls. */
+  readonly rules: RuleControls;
 }
 
 /** The workspace's repo: the first folder, which is where Project Docs looks for a link. */
@@ -44,12 +47,15 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
   const summary = new BulkSummaryProvider();
   const statusBar = new StatusBar();
   const problems = new ProblemsView(() => controller);
+  const rules = new RuleControls(() => controller);
   stateEmitter.event((state) => {
     statusBar.show(state);
+    rules.refresh();
     void problems.refresh();
   });
   context.subscriptions.push(
     statusBar,
+    rules,
     vscode.window.registerTreeDataProvider("projectDocs.problems", problems),
   );
   context.subscriptions.push(
@@ -79,7 +85,10 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
       if (state.state === "bulk" && previous !== "bulk") void promptBulk(state, summary);
       previous = state.state;
     });
-    controller.onDidPass((outcome) => notifier.onPass(outcome));
+    controller.onDidPass((outcome) => {
+      notifier.onPass(outcome);
+      rules.onPass(outcome);
+    });
     await controller.start();
   };
 
@@ -88,6 +97,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     controller?.dispose();
     controller = null;
     statusBar.show(null);
+    rules.refresh();
     await problems.refresh();
   };
 
@@ -109,6 +119,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     controller: () => controller,
     conflicts,
     problems,
+    rules,
   };
 
   context.subscriptions.push(
