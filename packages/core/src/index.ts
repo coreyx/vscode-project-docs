@@ -36,3 +36,5 @@ export * from "./plan/index.js";
 export * from "./exec/index.js";
 
 export * from "./records/index.js";
+
+export * from "./engine/index.js";

@@ -196,7 +196,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 ### Milestone 5: Agents and terminals can sync without VS Code
 
-- [ ] **TASK-17: Add the CLI (`packages/cli`)**
+- [x] **TASK-17: Add the CLI (`packages/cli`)**
   - **Associated Acceptance Criteria**: `7.2`, `18.1`, `18.2`, `18.3`
   - **Concrete Steps**:
     1. Implement `status`, `sync` and `where` with `util.parseArgs`, `--json`, and the exit codes from design.md.

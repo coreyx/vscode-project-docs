@@ -12,5 +12,13 @@ await build({
   target: "node22",
   format: "esm",
   sourcemap: true,
-  banner: { js: "#!/usr/bin/env node" },
+  // Some bundled dependencies (yaml) are CommonJS and call require() for Node built-ins, which an
+  // ESM bundle doesn't have; createRequire gives them a real one.
+  banner: {
+    js: [
+      "#!/usr/bin/env node",
+      'import { createRequire as __pdCreateRequire } from "node:module";',
+      "const require = __pdCreateRequire(import.meta.url);",
+    ].join("\n"),
+  },
 });

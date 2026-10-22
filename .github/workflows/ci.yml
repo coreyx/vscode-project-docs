@@ -36,6 +36,8 @@ jobs:
       - run: npm run format
       - run: npm run typecheck
       - run: npm run build
+      # The CLI is a single bundled file; make sure it actually starts.
+      - run: node packages/cli/dist/project-docs.mjs --version
       - run: npm run coverage
       - name: Upload coverage report
         if: always() && matrix.node == 22

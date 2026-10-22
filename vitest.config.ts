@@ -4,8 +4,10 @@ import { defineConfig } from "vitest/config";
 const CRITICAL = "packages/core/src/{plan,exec,merge,guards,privatemd,state,lock}/**/*.ts";
 
 export default defineConfig({
-  // Resolve the core from its TypeScript sources, so tests never run against a stale build.
+  // Resolve the core from its TypeScript sources, so tests never run against a stale build. Tests
+  // run in Node through Vite's SSR resolver, which has its own conditions; both are set.
   resolve: { conditions: ["source"] },
+  ssr: { resolve: { conditions: ["source"], externalConditions: ["source"] } },
   test: {
     include: ["packages/core/test/**/*.test.ts", "packages/cli/test/**/*.test.ts"],
     coverage: {
