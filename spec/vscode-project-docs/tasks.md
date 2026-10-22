@@ -60,7 +60,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
        - injection points for VS Code's trash and the `trash` package.
     4. Stress-test atomicity: a reader polling a file during 1,000 writes never sees a partial file.
 
-- [ ] **TASK-5: Add the scanner (`scan/`)**
+- [x] **TASK-5: Add the scanner (`scan/`)**
   - **Associated Acceptance Criteria**: `3.4`, `16.4`, `20.3`
   - **Concrete Steps**:
     1. Walk a side into a `Snapshot`, keeping the on-disk case.
