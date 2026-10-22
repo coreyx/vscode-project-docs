@@ -28,3 +28,5 @@ export * from "./privatemd/index.js";
 export * from "./links/index.js";
 
 export * from "./guards/index.js";
+
+export * from "./merge/index.js";

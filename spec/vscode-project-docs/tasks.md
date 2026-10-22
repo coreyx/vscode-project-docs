@@ -145,7 +145,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 ### Milestone 4: The sync engine plans, merges and executes passes correctly
 
-- [ ] **TASK-12: Add the three-way merge (`merge/`)**
+- [x] **TASK-12: Add the three-way merge (`merge/`)**
   - **Associated Acceptance Criteria**: `5.1`
   - **Concrete Steps**:
     1. Wrap `node-diff3` on LF-normalized line arrays, returning a clean result or conflict hunks.
