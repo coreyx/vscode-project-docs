@@ -7,6 +7,7 @@
  * than overwriting something the planner never saw; the next pass plans it afresh. That check is
  * what makes replaying a journal safe at any point.
  */
+import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import type { Action, Notice, Plan } from "../plan/index.js";
 import {
@@ -328,13 +329,22 @@ async function writeStatus(
         reasons: [],
       })),
   ];
-  const status = {
-    format: 1,
-    updatedAt: at.toISOString(),
-    state: items.length > 0 ? "attention" : "idle",
-    items,
-  };
-  await writeFileAtomic(statusFilePath(ctx.vault.root), `${JSON.stringify(status, null, 2)}\n`);
+  const file = statusFilePath(ctx.vault.root);
+  const state = items.length > 0 ? "attention" : "idle";
+  // Rewrite only when something changed: an unchanged status written after every pass would keep
+  // file watchers (the plugin's, and any on the vault) busy for nothing.
+  try {
+    const previous = JSON.parse(await readFile(file, "utf8")) as {
+      state?: unknown;
+      items?: unknown;
+    };
+    if (previous.state === state && JSON.stringify(previous.items) === JSON.stringify(items))
+      return;
+  } catch {
+    // No status yet, or an unreadable one: write it.
+  }
+  const status = { format: 1, updatedAt: at.toISOString(), state, items };
+  await writeFileAtomic(file, `${JSON.stringify(status, null, 2)}\n`);
 }
 
 /** Deletes blobs nothing refers to any more: not a base, and not part of a conflict. */

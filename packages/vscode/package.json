@@ -45,12 +45,39 @@
         "command": "projectDocs.unlink",
         "title": "Unlink",
         "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.syncNow",
+        "title": "Sync Now",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.pause",
+        "title": "Pause Sync",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.resume",
+        "title": "Resume Sync",
+        "category": "Project Docs"
       }
     ],
     "menus": {
       "commandPalette": [
         {
           "command": "projectDocs.unlink",
+          "when": "projectDocs.linked"
+        },
+        {
+          "command": "projectDocs.syncNow",
+          "when": "projectDocs.linked"
+        },
+        {
+          "command": "projectDocs.pause",
+          "when": "projectDocs.linked"
+        },
+        {
+          "command": "projectDocs.resume",
           "when": "projectDocs.linked"
         }
       ]

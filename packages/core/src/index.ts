@@ -38,3 +38,5 @@ export * from "./exec/index.js";
 export * from "./records/index.js";
 
 export * from "./engine/index.js";
+
+export * from "./watch/index.js";

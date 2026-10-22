@@ -231,7 +231,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     3. Implement "Unlink": stop the engine and remove the records, without touching other files.
     4. Show the re-link prompt for a missing local file, keeping `projectId`.
 
-- [ ] **TASK-21: Add watching and the sync controller**
+- [x] **TASK-21: Add watching and the sync controller**
   - **Associated Acceptance Criteria**: `3.1`, `4.2`, `4.3`, `19.1`, `20.2`
   - **Concrete Steps**:
     1. Add `FileSystemWatcher`s for the docs folder and the vault folder, switching to the core's 5-second poller for vault paths under `/mnt/` or on network drives.
