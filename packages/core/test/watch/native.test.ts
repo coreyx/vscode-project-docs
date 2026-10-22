@@ -37,7 +37,10 @@ describe("startNativeWatch", () => {
     const stop = startNativeWatch(root, () => count++);
     expect(stop).not.toBeNull();
     try {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // macOS's FSEvents can deliver events from just before the watch started (such as the test's
+      // own mkdir), so let those arrive and drop them before measuring.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      count = 0;
       await write();
       await new Promise((resolve) => setTimeout(resolve, 500));
       return count;

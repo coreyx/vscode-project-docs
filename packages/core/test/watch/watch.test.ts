@@ -207,7 +207,8 @@ describe("SyncScheduler", () => {
     expect(s.state).toEqual({ state: "idle" });
     await s.syncNow({ allowBulk: true });
     expect(await fileIs(path.join(linked.vaultFolder, "d0.md"), "0\n")()).toBe(false);
-  });
+    // Several passes over 30 files take seconds on Windows CI runners.
+  }, 30_000);
 
   it("reports attention when a pass leaves something for the user", async () => {
     await writeFile(path.join(linked.vaultFolder, "bad.md"), "---\nproject-docs: typo\n---\n");
