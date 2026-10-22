@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Project Docs link",
+  "type": "object",
+  "required": ["format", "projectId", "docsFolder", "vaultFolder"],
+  "properties": {
+    "format": {
+      "const": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^pd_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "docsFolder": {
+      "type": "string",
+      "description": "The docs folder, relative to the repo root."
+    },
+    "vaultFolder": {
+      "type": "string",
+      "description": "The linked folder, relative to the vault root."
+    },
+    "deepLink": {
+      "type": "string",
+      "pattern": "^obsidian://adv-uri\\?uid="
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "privateSubfolder": {
+          "type": "string",
+          "default": "private"
+        },
+        "folderNotePattern": {
+          "type": "string",
+          "default": "{folder}/{folderName}.md"
+        },
+        "syncAttachments": {
+          "type": "boolean",
+          "default": false
+        },
+        "keepLinksAsWritten": {
+          "type": "boolean",
+          "default": false
+        },
+        "allowLinksOutsideProjectFolder": {
+          "type": "boolean",
+          "default": false
+        },
+        "advancedUriDeepLinks": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

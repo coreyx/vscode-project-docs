@@ -212,7 +212,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 ### Milestone 6: The extension links projects and keeps them in sync
 
-- [ ] **TASK-19: Set up the extension skeleton**
+- [x] **TASK-19: Set up the extension skeleton**
   - **Associated Acceptance Criteria**: `21.3`
   - **Concrete Steps**:
     1. Write the `package.json` contributions:
