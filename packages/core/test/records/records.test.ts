@@ -16,9 +16,11 @@ import {
   linkNotePathFor,
   localRecord,
   newProjectId,
+  obsidianOpenUri,
   readLink,
   readLinkNoteRepo,
   repoPathForVault,
+  setDeepLinks,
   validateCommitted,
   vscodeOpenUri,
   writeLink,
@@ -282,5 +284,57 @@ describe("paths across WSL (REQ-2.0.4)", () => {
     expect(vscodeOpenUri("/home/me/repo", wsl)).toBe(
       "vscode://vscode-remote/wsl+Ubuntu/home/me/repo",
     );
+  });
+});
+
+describe("opening the vault (REQ-2.0.8, 2.0.9)", () => {
+  const wsl = { distro: "Ubuntu", automountRoot: "/mnt/" };
+
+  it("builds Obsidian's open link from the note's path, as Windows sees it from WSL", () => {
+    expect(obsidianOpenUri("/home/me/Vault/P/P.md", null)).toBe(
+      "obsidian://open?path=%2Fhome%2Fme%2FVault%2FP%2FP.md",
+    );
+    expect(obsidianOpenUri("/mnt/c/Vault/P/P.md", wsl)).toBe(
+      `obsidian://open?path=${encodeURIComponent("C:\\Vault\\P\\P.md")}`,
+    );
+  });
+
+  it("turns deep links on and off in the committed record and the link note (REQ-2.6, 2.7)", async () => {
+    const id = newProjectId();
+    const note = path.join(vault, "P", "P.md");
+    const committed = committedRecord({
+      projectId: id,
+      docsFolder: "docs",
+      vaultFolder: "P",
+      settings: DEFAULT_SETTINGS,
+    });
+    const local = localRecord({
+      projectId: id,
+      vaultRoot: vault,
+      vaultFolderPath: path.join(vault, "P"),
+      linkNotePath: note,
+    });
+    await writeLink(repo, committed, local);
+    await writeLinkNote(note, {
+      projectId: id,
+      repoPath: repo,
+      openRepoUri: "vscode://file/x",
+      deepLinks: false,
+    });
+    const before = await readFile(note, "utf8");
+
+    const on = await setDeepLinks(repo, committed, local, true);
+    expect(on.deepLink).toBe(deepLinkFor(id));
+    const saved = JSON.parse(await readFile(path.join(repo, COMMITTED_FILE), "utf8")) as unknown;
+    expect(saved).toMatchObject({
+      deepLink: deepLinkFor(id),
+      settings: { advancedUriDeepLinks: true },
+    });
+    expect(JSON.stringify(saved)).not.toContain("Private Vault");
+    expect(await readFile(note, "utf8")).toContain(`uid: ${id}`);
+
+    const off = await setDeepLinks(repo, on, local, false);
+    expect(off.deepLink).toBeUndefined();
+    expect(await readFile(note, "utf8")).toBe(before);
   });
 });

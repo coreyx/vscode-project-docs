@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { wslToWindows, type WslContext } from "../paths/index.js";
-import { readProperty, setProperties } from "../rules/index.js";
+import { readProperty, removeProperties, setProperties } from "../rules/index.js";
 import { writeFileAtomic } from "../sidefs/index.js";
 import {
   COMMITTED_DESCRIPTION,
@@ -185,6 +185,47 @@ export async function writeLinkNote(
     text += `${separator}${eol}[${OPEN_REPO_LABEL}](${fields.openRepoUri})${eol}`;
   }
   await writeFileAtomic(linkNotePath, text);
+}
+
+/**
+ * Obsidian's built-in link to a note by its full path (REQ-2.0.9). From WSL, Obsidian is a Windows
+ * program, so the path is given as Windows sees it. Built from the machine-local record each time
+ * and never written anywhere committed.
+ */
+export function obsidianOpenUri(notePath: string, wsl: WslContext | null): string {
+  const native = wsl ? wslToWindows(notePath, wsl) : notePath;
+  return `obsidian://open?path=${encodeURIComponent(native)}`;
+}
+
+/**
+ * Turns Advanced URI deep links on or off for a linked repo (REQ-2.0.8): the committed record
+ * gains or loses its deep link, and the link note its `uid`. Returns the new committed record.
+ */
+export async function setDeepLinks(
+  repoRoot: string,
+  committed: CommittedLink,
+  local: LocalLink,
+  on: boolean,
+): Promise<CommittedLink> {
+  const updated = committedRecord({
+    projectId: committed.projectId,
+    docsFolder: committed.docsFolder,
+    vaultFolder: committed.vaultFolder,
+    settings: { ...committed.settings, advancedUriDeepLinks: on },
+  });
+  await writeLink(repoRoot, updated, local);
+  let note: string;
+  try {
+    note = await readFile(local.linkNotePath, "utf8");
+  } catch {
+    // No link note to update; it's written again on the next link.
+    return updated;
+  }
+  const next = on
+    ? setProperties(note, { uid: committed.projectId })
+    : removeProperties(note, ["uid"]);
+  if (next !== note) await writeFileAtomic(local.linkNotePath, next);
+  return updated;
 }
 
 /** Reads the repo path recorded in a link note, as the plugin does (REQ-14.0.6). */

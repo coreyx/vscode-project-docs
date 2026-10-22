@@ -152,6 +152,21 @@
         "title": "Open Decoded Preview",
         "category": "Project Docs",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "projectDocs.setupPrivateMd",
+        "title": "Set up PRIVATE.md",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.installHooks",
+        "title": "Install PRIVATE.md Commit Hooks",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.openInObsidian",
+        "title": "Open in Obsidian",
+        "category": "Project Docs"
       }
     ],
     "menus": {
@@ -239,6 +254,10 @@
         {
           "command": "projectDocs.openDecodedPreview",
           "when": "projectDocs.decodable"
+        },
+        {
+          "command": "projectDocs.openInObsidian",
+          "when": "projectDocs.linked"
         }
       ],
       "editor/title": [
@@ -322,6 +341,71 @@
       {
         "id": "projectDocs.ruleMenu",
         "label": "Project Docs Sync Rule"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "gettingStarted",
+        "title": "Get Started with Project Docs",
+        "description": "Keep your repo's docs and your Obsidian notes in sync, and keep private values out of the repo.",
+        "steps": [
+          {
+            "id": "link",
+            "title": "Link your docs to Obsidian",
+            "description": "Pick the repo's docs folder and a folder in your vault. Edits in either app then sync to the other.\n[Link to Obsidian](command:projectDocs.link)",
+            "media": {
+              "markdown": "media/walkthrough/link.md"
+            },
+            "completionEvents": [
+              "onCommand:projectDocs.link"
+            ]
+          },
+          {
+            "id": "rules",
+            "title": "Choose how each file syncs",
+            "description": "Right-click a doc and pick a sync rule, or click the rule in the status bar.\n[Change Sync Rule](command:projectDocs.setRule)",
+            "media": {
+              "markdown": "media/walkthrough/rules.md"
+            },
+            "completionEvents": [
+              "onCommand:projectDocs.setRule"
+            ]
+          },
+          {
+            "id": "privateMd",
+            "title": "Keep private values out of the repo",
+            "description": "PRIVATE.md maps placeholders in your docs to real values, and never leaves your machine.\n[Set up PRIVATE.md](command:projectDocs.setupPrivateMd)",
+            "media": {
+              "markdown": "media/walkthrough/private-md.md"
+            },
+            "completionEvents": [
+              "onCommand:projectDocs.setupPrivateMd"
+            ]
+          },
+          {
+            "id": "decoded",
+            "title": "Read coded docs with real values",
+            "description": "Click the eye in a doc's title bar to see it with real values, in a view that can't be saved.\n[Toggle Decoded View](command:projectDocs.toggleDecoded)",
+            "media": {
+              "markdown": "media/walkthrough/decoded.md"
+            },
+            "completionEvents": [
+              "onCommand:projectDocs.toggleDecoded",
+              "onCommand:projectDocs.showDecoded"
+            ]
+          },
+          {
+            "id": "obsidian",
+            "title": "Jump to the project in Obsidian",
+            "description": "Open the project's folder note in Obsidian, which links back to this repo.\n[Open in Obsidian](command:projectDocs.openInObsidian)",
+            "media": {
+              "markdown": "media/walkthrough/obsidian.md"
+            },
+            "completionEvents": [
+              "onCommand:projectDocs.openInObsidian"
+            ]
+          }
+        ]
       }
     ]
   },

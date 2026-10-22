@@ -127,16 +127,47 @@ export const COMMITTED_SCHEMA = {
     projectId: { type: "string", pattern: PROJECT_ID_PATTERN.source },
     docsFolder: { type: "string", description: "The docs folder, relative to the repo root." },
     vaultFolder: { type: "string", description: "The linked folder, relative to the vault root." },
-    deepLink: { type: "string", pattern: "^obsidian://adv-uri\\?uid=" },
+    deepLink: {
+      type: "string",
+      pattern: "^obsidian://adv-uri\\?uid=",
+      description:
+        "Opens the project's folder note through the Advanced URI plugin. Written by Project Docs while advancedUriDeepLinks is on.",
+    },
     settings: {
       type: "object",
       properties: {
-        privateSubfolder: { type: "string", default: DEFAULT_SETTINGS.privateSubfolder },
-        folderNotePattern: { type: "string", default: DEFAULT_SETTINGS.folderNotePattern },
-        syncAttachments: { type: "boolean", default: false },
-        keepLinksAsWritten: { type: "boolean", default: false },
-        allowLinksOutsideProjectFolder: { type: "boolean", default: false },
-        advancedUriDeepLinks: { type: "boolean", default: false },
+        privateSubfolder: {
+          type: "string",
+          default: DEFAULT_SETTINGS.privateSubfolder,
+          description: "The vault subfolder whose notes never sync to the repo.",
+        },
+        folderNotePattern: {
+          type: "string",
+          default: DEFAULT_SETTINGS.folderNotePattern,
+          description: "Where the link note goes in the vault: the project folder's folder note.",
+        },
+        syncAttachments: {
+          type: "boolean",
+          default: false,
+          description: "Also sync files other than Markdown, such as images.",
+        },
+        keepLinksAsWritten: {
+          type: "boolean",
+          default: false,
+          description:
+            "Leave Obsidian wikilinks as written instead of converting them to Markdown links.",
+        },
+        allowLinksOutsideProjectFolder: {
+          type: "boolean",
+          default: false,
+          description: "Let synced notes link to vault notes outside the project folder.",
+        },
+        advancedUriDeepLinks: {
+          type: "boolean",
+          default: false,
+          description:
+            "Open the project in Obsidian through the Advanced URI plugin. Project Docs puts `uid: <project id>` in the project folder's folder note, which anchors the link to the folder however its contents change; if you add the uid by hand, put it there too.",
+        },
       },
       additionalProperties: false,
     },

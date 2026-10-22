@@ -1,0 +1,4 @@
+These scripts are copied unchanged from the PRIVATE.md standard's reference implementation:
+https://github.com/coreyx/private-md-standard, skills/private-md/scripts/, at commit af386e1fa0645fcde3e3a3f413fcfc60c6201435.
+They are MIT-licensed (see LICENSE). Project Docs runs `private_md.py install-hooks`, which copies
+them into a repo and wires up commit hooks that block real values from PRIVATE.md.

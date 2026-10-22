@@ -15,6 +15,8 @@ import {
   promptBulk,
 } from "./conflicts/prompts.js";
 import { DecodedView } from "./decoded/view.js";
+import { ObsidianLinks } from "./link/obsidian.js";
+import { PrivateMdSetup } from "./privatemd/setup.js";
 import { PrivacyDiagnostics, RealValueFix } from "./privacy/diagnostics.js";
 import { RuleControls } from "./rules/controls.js";
 import { SyncController } from "./sync/controller.js";
@@ -36,6 +38,10 @@ export interface ProjectDocsApi {
   readonly diagnostics: PrivacyDiagnostics;
   /** Decoded views of coded docs. */
   readonly decoded: DecodedView;
+  /** PRIVATE.md setup and the commit hooks. */
+  readonly privateMd: PrivateMdSetup;
+  /** Opening the project in Obsidian. */
+  readonly obsidian: ObsidianLinks;
 }
 
 /** The workspace's repo: the first folder, which is where Project Docs looks for a link. */
@@ -57,6 +63,10 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
   const diagnostics = new PrivacyDiagnostics(() => controller);
   const realValueFix = new RealValueFix(() => controller);
   const decoded = new DecodedView(() => controller);
+  // The linked repo, or else the workspace's: setup works before a repo is linked.
+  const activeRepo = () => controller?.repoRoot ?? workspaceRepo();
+  const privateMdSetup = new PrivateMdSetup(context, activeRepo);
+  const obsidian = new ObsidianLinks(context, activeRepo);
   stateEmitter.event((state) => {
     statusBar.show(state);
     rules.refresh();
@@ -68,6 +78,8 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     diagnostics,
     realValueFix,
     decoded,
+    privateMdSetup,
+    obsidian,
     vscode.window.registerTreeDataProvider("projectDocs.problems", problems),
   );
   context.subscriptions.push(
@@ -105,6 +117,10 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     });
     await controller.start();
     await decoded.refreshMode();
+    const projectId = controller.linkedProject?.committed.projectId;
+    // One-time offers; neither blocks syncing.
+    void obsidian.reconcile();
+    if (projectId) void privateMdSetup.offer(projectId);
   };
 
   const stopController = async () => {
@@ -137,6 +153,8 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     rules,
     diagnostics,
     decoded,
+    privateMd: privateMdSetup,
+    obsidian,
   };
 
   context.subscriptions.push(

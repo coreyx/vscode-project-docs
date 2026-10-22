@@ -44,6 +44,8 @@ export default defineConfig({
         "packages/vscode/src/rules/controls.ts",
         "packages/vscode/src/privacy/diagnostics.ts",
         "packages/vscode/src/decoded/view.ts",
+        "packages/vscode/src/privatemd/setup.ts",
+        "packages/vscode/src/link/obsidian.ts",
       ],
       reporter: ["text", "html", "json-summary"],
       thresholds: {

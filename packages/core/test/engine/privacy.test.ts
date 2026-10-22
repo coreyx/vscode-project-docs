@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { checkRepoDoc } from "../../src/guards/index.js";
 import { LOG_FILE } from "../../src/log/index.js";
 import {
+  loadMapping,
   privacyContext,
   replaceRealValuesInVault,
   syncOnce,
@@ -70,5 +71,18 @@ describe("privacyContext (REQ-13.0.5)", () => {
       "links-private",
       "real-value",
     ]);
+  });
+});
+
+describe("loadMapping", () => {
+  it("treats the empty table that setup creates as nothing to protect, not a problem", async () => {
+    const repo = path.dirname(linked.docs);
+    await writeFile(
+      path.join(repo, "PRIVATE.md"),
+      "## Placeholders\n\n| Placeholder in the repo | Real value | What it is |\n| --- | --- | --- |\n",
+    );
+    expect(await loadMapping(repo)).toEqual({ mapping: null });
+    await writeFile(path.join(repo, "PRIVATE.md"), "no table\n");
+    expect((await loadMapping(repo)).problem).toMatch(/can't be read/);
   });
 });

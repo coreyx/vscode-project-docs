@@ -286,7 +286,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     3. Show the standard's error for a missing or invalid PRIVATE.md, and no decoded content.
     4. Test that typing into the decoded document is impossible and the file on disk is unchanged.
 
-- [ ] **TASK-27: Add PRIVATE.md setup, the walkthrough and Open in Obsidian**
+- [x] **TASK-27: Add PRIVATE.md setup, the walkthrough and Open in Obsidian**
   - **Associated Acceptance Criteria**: `2.4`, `2.6`, `15.1`, `15.2`
   - **Concrete Steps**:
     1. Implement "Set up PRIVATE.md": create `PRIVATE.md` with an empty table, create `PRIVATE.example.md`, and add the `.gitignore` entries.
