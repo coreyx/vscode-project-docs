@@ -1,13 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readFile, readdir } from "node:fs/promises";
 import * as path from "node:path";
-import {
-  REPORT_FAILURES_AFTER,
-  execute,
-  replayJournal,
-  statusFilePath,
-} from "../../src/exec/index.js";
+import { REPORT_FAILURES_AFTER, execute, replayJournal } from "../../src/exec/index.js";
 import { markdownHash } from "../../src/scan/index.js";
+import { statusFilePath } from "../../src/status/index.js";
 import type { SideFs } from "../../src/sidefs/index.js";
 import { harness, type Harness } from "./harness.js";
 

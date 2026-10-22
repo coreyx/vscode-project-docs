@@ -1,8 +1,25 @@
 {
   "name": "@specdevship/project-docs-core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Sync engine, rules, link formats and PRIVATE.md decoder shared by Project Docs' VS Code extension, CLI and Obsidian plugin.",
+  "keywords": [
+    "obsidian",
+    "vscode",
+    "markdown",
+    "sync",
+    "private-md"
+  ],
+  "homepage": "https://github.com/coreyx/vscode-project-docs/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/coreyx/vscode-project-docs/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coreyx/vscode-project-docs.git",
+    "directory": "packages/core"
+  },
   "license": "MIT",
+  "author": "Corey Struzan",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,16 +28,52 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./rules": {
+      "source": "./src/rules/index.ts",
+      "types": "./dist/rules/index.d.ts",
+      "import": "./dist/rules/index.js"
+    },
+    "./records": {
+      "source": "./src/records/index.ts",
+      "types": "./dist/records/index.d.ts",
+      "import": "./dist/records/index.js"
+    },
+    "./privatemd": {
+      "source": "./src/privatemd/index.ts",
+      "types": "./dist/privatemd/index.d.ts",
+      "import": "./dist/privatemd/index.js"
+    },
+    "./guards": {
+      "source": "./src/guards/index.ts",
+      "types": "./dist/guards/index.d.ts",
+      "import": "./dist/guards/index.js"
+    },
+    "./links": {
+      "source": "./src/links/index.ts",
+      "types": "./dist/links/index.d.ts",
+      "import": "./dist/links/index.js"
+    },
+    "./status": {
+      "source": "./src/status/index.ts",
+      "types": "./dist/status/index.d.ts",
+      "import": "./dist/status/index.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "src",
+    "!dist/**/*.map"
   ],
   "engines": {
     "node": ">=22"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "mdast-util-from-markdown": "^2.1.0",

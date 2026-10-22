@@ -33,6 +33,7 @@ import { COMMITTED_FILE, readLink, type CommittedLink, type LocalLink } from "..
 import { decodeUtf8, scan, type StatCache } from "../scan/index.js";
 import { createNodeSideFs, vaultTrash, type SideFs, type TrashFn } from "../sidefs/index.js";
 import { StateStore, projectStateDir, stateRoot } from "../state/index.js";
+import { privateFilesPath } from "../status/index.js";
 
 /** A linked project, ready to sync. */
 export interface Project {
@@ -166,7 +167,7 @@ async function loadPrivateFiles(
 ): Promise<PrivateFilesList | typeof INVALID_PRIVATE_FILES> {
   try {
     return parsePrivateFilesList(
-      await readFile(path.join(vaultFolderPath, ".project-docs", "private-files.json"), "utf8"),
+      await readFile(privateFilesPath(vaultFolderPath), "utf8"),
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return parsePrivateFilesList(null);

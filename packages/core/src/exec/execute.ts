@@ -8,7 +8,6 @@
  * what makes replaying a journal safe at any point.
  */
 import { readFile } from "node:fs/promises";
-import * as path from "node:path";
 import type { Action, Notice, Plan } from "../plan/index.js";
 import {
   applyLineEnding,
@@ -21,6 +20,7 @@ import {
 import { writeFileAtomic, type Side, type SideFs } from "../sidefs/index.js";
 import type { Index, IndexEntry, StateStore } from "../state/index.js";
 import type { Logger } from "../log/index.js";
+import { serializeStatusFile, statusFilePath } from "../status/index.js";
 
 /** Bumped only when the journal's shape changes incompatibly. */
 export const JOURNAL_FORMAT = 1;
@@ -62,11 +62,6 @@ export interface PassResult {
 
 /** After this many consecutive failed passes, a failing write is reported to the user. */
 export const REPORT_FAILURES_AFTER = 3;
-
-/** Where the status file the plugin reads lives (design decision 7). */
-export function statusFilePath(vaultRoot: string): string {
-  return path.join(vaultRoot, ".project-docs", "status.json");
-}
 
 class Stale extends Error {}
 
@@ -344,8 +339,7 @@ async function writeStatus(
   } catch {
     // No status yet, or an unreadable one: write it.
   }
-  const status = { format: 1, updatedAt: at.toISOString(), state, items };
-  await writeFileAtomic(file, `${JSON.stringify(status, null, 2)}\n`);
+  await writeFileAtomic(file, serializeStatusFile({ updatedAt: at.toISOString(), state, items }));
 }
 
 /** Deletes blobs nothing refers to any more: not a base, and not part of a conflict. */

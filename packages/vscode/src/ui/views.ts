@@ -5,7 +5,11 @@
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { statusFilePath, type SchedulerState } from "@specdevship/project-docs-core";
+import {
+  parseStatusFile,
+  statusFilePath,
+  type SchedulerState,
+} from "@specdevship/project-docs-core";
 import type { SyncController } from "../sync/controller.js";
 import { kindLabel, resolveAction, statusText, type StatusItem } from "./presentation.js";
 
@@ -68,7 +72,7 @@ class ProblemItem extends vscode.TreeItem {
 
 /** Lists every problem the last pass reported, each opening its fix when clicked. */
 export class ProblemsView implements vscode.TreeDataProvider<ProblemItem> {
-  private items: StatusItem[] = [];
+  private items: readonly StatusItem[] = [];
   private readonly emitter = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this.emitter.event;
 
@@ -80,14 +84,8 @@ export class ProblemsView implements vscode.TreeDataProvider<ProblemItem> {
     if (!project) {
       this.items = [];
     } else {
-      try {
-        const status = JSON.parse(await readFile(statusFilePath(project.vault.root), "utf8")) as {
-          items?: StatusItem[];
-        };
-        this.items = status.items ?? [];
-      } catch {
-        this.items = [];
-      }
+      const text = await readFile(statusFilePath(project.vault.root), "utf8").catch(() => null);
+      this.items = parseStatusFile(text)?.items ?? [];
     }
     this.emitter.fire();
   }

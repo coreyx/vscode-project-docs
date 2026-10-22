@@ -2,7 +2,7 @@
  * What the status bar and the Project Docs view say, and which action resolves each problem
  * (REQ-17). Plain functions with no VS Code dependency, so they can be unit-tested.
  */
-import type { SchedulerState } from "@specdevship/project-docs-core";
+import type { SchedulerState, StatusItem } from "@specdevship/project-docs-core";
 
 /** The status bar item's text and tooltip. Text uses VS Code's `$(icon)` syntax. */
 export interface StatusText {
@@ -50,15 +50,8 @@ export function statusText(state: SchedulerState): StatusText {
   }
 }
 
-/** One problem from `status.json`, as the engine wrote it. */
-export interface StatusItem {
-  readonly kind: string;
-  readonly path: string;
-  readonly message: string;
-  readonly reasons: readonly string[];
-  /** A fix the system can apply, such as replacing real values with placeholders. */
-  readonly fix?: string;
-}
+/** One problem from `status.json`, as the engine wrote it; the core owns its format. */
+export type { StatusItem };
 
 /** The action that resolves a problem, as a VS Code command and its arguments. */
 export interface ResolveAction {
