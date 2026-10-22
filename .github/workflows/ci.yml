@@ -19,6 +19,7 @@ jobs:
   test:
     name: test (${{ matrix.os }}, node ${{ matrix.node }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -50,6 +51,8 @@ jobs:
   extension:
     name: extension integration (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # A hung VS Code would otherwise hold the runner for hours; the suite takes about 3 minutes.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
