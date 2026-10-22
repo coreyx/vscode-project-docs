@@ -298,7 +298,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
        Test the "open repo" link in the link note on each platform, including a WSL repo opened from Windows.
 
-- [ ] **TASK-28: Write the documentation and run the agent test**
+- [x] **TASK-28: Write the documentation and run the agent test**
   - **Associated Acceptance Criteria**: `2.3`, `2.10`
   - **Concrete Steps**:
     1. Write the extension `README.md`, covering:

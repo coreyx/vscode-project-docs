@@ -14,6 +14,8 @@ Project Docs is part of SpecDevShip. It is under development; see [`spec/vscode-
 
 The Obsidian plugin lives in [obsidian-project-docs](https://github.com/coreyx/obsidian-project-docs).
 
+The user guide is the [extension's README](packages/vscode/README.md); the command line has [its own](packages/cli/README.md).
+
 ## Development
 
 Requires Node 22 or newer.
