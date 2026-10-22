@@ -131,17 +131,22 @@ function decodeInTypeScript(c: Case): { ok: string } | { error: string } {
 const python = findPython();
 
 describe("decoder agrees with the Python reference implementation", () => {
-  it.skipIf(python === null)("on 500 generated cases", () => {
-    const cases = generate(500);
-    const result = spawnSync(python ?? "", ["-I", "-c", DRIVER, REFERENCE_DIR], {
-      input: Buffer.from(JSON.stringify(cases), "utf8"),
-      maxBuffer: 64 * 1024 * 1024,
-    });
-    expect(result.status, result.stderr.toString()).toBe(0);
-    const expected = JSON.parse(result.stdout.toString("utf8")) as unknown[];
-    const disagreements = cases
-      .map((c, i) => ({ i, c, ts: decodeInTypeScript(c), py: expected[i] }))
-      .filter(({ ts, py }) => JSON.stringify(ts) !== JSON.stringify(py));
-    expect(disagreements.slice(0, 3)).toEqual([]);
-  });
+  it.skipIf(python === null)(
+    "on 500 generated cases",
+    () => {
+      const cases = generate(500);
+      const result = spawnSync(python ?? "", ["-I", "-c", DRIVER, REFERENCE_DIR], {
+        input: Buffer.from(JSON.stringify(cases), "utf8"),
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      expect(result.status, result.stderr.toString()).toBe(0);
+      const expected = JSON.parse(result.stdout.toString("utf8")) as unknown[];
+      const disagreements = cases
+        .map((c, i) => ({ i, c, ts: decodeInTypeScript(c), py: expected[i] }))
+        .filter(({ ts, py }) => JSON.stringify(ts) !== JSON.stringify(py));
+      expect(disagreements.slice(0, 3)).toEqual([]);
+      // Starting Python takes several seconds on Windows CI runners.
+    },
+    60_000,
+  );
 });

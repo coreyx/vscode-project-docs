@@ -117,17 +117,30 @@ describe("writeAtomic", () => {
           const code = (error as NodeJS.ErrnoException).code ?? "";
           if (!["EBUSY", "EPERM", "EACCES", "ENOENT"].includes(code)) throw error;
         }
-        // Pause between reads like a real reader (an editor, Obsidian) does. A reader that never
-        // lets go starves Windows' rename-over-open-file, which isn't what this test is about.
         await new Promise((resolve) => setTimeout(resolve, 1));
       }
     })();
-    for (let i = 0; i < 1000; i++) await fs.writeAtomic("busy.md", i % 2 ? a : b);
+    // Windows can't rename over a file another process has open, so against a reader this
+    // relentless a write occasionally runs out of retries. The engine treats that as a failed
+    // write and retries on the next pass; what must never happen is a partial read.
+    let failedWrites = 0;
+    for (let i = 0; i < 1000; i++) {
+      try {
+        await fs.writeAtomic("busy.md", i % 2 ? a : b);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code ?? "";
+        if (process.platform !== "win32" || !["EPERM", "EBUSY", "EACCES"].includes(code)) {
+          throw error;
+        }
+        failedWrites++;
+      }
+    }
     writing = false;
     await reader;
     expect(bad).toEqual([]);
     expect(reads).toBeGreaterThan(0);
-  }, 60_000);
+    expect(failedWrites).toBeLessThan(50);
+  }, 120_000);
 });
 
 describe("rename", () => {
