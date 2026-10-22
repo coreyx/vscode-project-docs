@@ -14,3 +14,7 @@ export * from "./paths/index.js";
 export * from "./sidefs/index.js";
 
 export * from "./scan/index.js";
+
+export * from "./state/index.js";
+
+export * from "./lock/index.js";

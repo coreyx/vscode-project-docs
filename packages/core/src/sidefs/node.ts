@@ -50,6 +50,30 @@ function tempPathFor(target: string): string {
   );
 }
 
+/**
+ * Writes a file so that a concurrent reader sees either the old or the new content, never a mix:
+ * the data goes to a temporary file in the same folder, is flushed, and is renamed over the target.
+ * Used for linked folders and for the engine's own state.
+ */
+export async function writeFileAtomic(target: string, data: Uint8Array | string): Promise<void> {
+  await mkdir(path.dirname(target), { recursive: true });
+  const temp = tempPathFor(target);
+  const handle = await open(temp, "wx");
+  try {
+    await handle.writeFile(data);
+    // Flush before the rename, so a crash can't leave a renamed but empty file.
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  try {
+    await withRetries(() => rename(temp, target));
+  } catch (error) {
+    await unlink(temp).catch(() => undefined);
+    throw error;
+  }
+}
+
 /** Thrown when a rename would replace an existing file. */
 export class TargetExistsError extends Error {
   constructor(readonly key: string) {
@@ -105,23 +129,7 @@ export function createNodeSideFs(options: NodeSideFsOptions): SideFs {
     },
 
     async writeAtomic(key, data) {
-      const target = abs(key);
-      await mkdir(path.dirname(target), { recursive: true });
-      const temp = tempPathFor(target);
-      const handle = await open(temp, "wx");
-      try {
-        await handle.writeFile(data);
-        // Flush before the rename, so a crash can't leave a renamed but empty file.
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
-      try {
-        await withRetries(() => rename(temp, target));
-      } catch (error) {
-        await unlink(temp).catch(() => undefined);
-        throw error;
-      }
+      await writeFileAtomic(abs(key), data);
     },
 
     async rename(from, to) {

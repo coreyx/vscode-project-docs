@@ -76,7 +76,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
        - `PRIVATE.md`, `PRIVATE.example.md` and `*.private.md`.
     6. Classify files as Markdown or attachment, and tag the link note by path.
 
-- [ ] **TASK-6: Add the state store and engine lock (`state/`, `lock/`)**
+- [x] **TASK-6: Add the state store and engine lock (`state/`, `lock/`)**
   - **Associated Acceptance Criteria**: `19.1`, `19.3`
   - **Concrete Steps**:
     1. Resolve the per-user app-data folder (`%APPDATA%`, `~/Library/Application Support`, `$XDG_DATA_HOME`) with a `project-docs/projects/<projectId>/` subfolder.
