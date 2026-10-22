@@ -127,7 +127,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     6. Respect `keepLinksAsWritten`.
     7. Test the four acceptance examples, plus links inside code blocks, which must stay untouched.
 
-- [ ] **TASK-11: Add the privacy guards (`guards/`)**
+- [x] **TASK-11: Add the privacy guards (`guards/`)**
   - **Associated Acceptance Criteria**: `2.9`, `3.4`, `10.1`, `10.2`, `10.3`, `11.3`, `13.1`, `13.2`, `13.3`
   - **Concrete Steps**:
     1. Implement `guards.check(change)`, returning hold-back or skip reasons for each of:

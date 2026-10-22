@@ -26,3 +26,5 @@ export * from "./rules/index.js";
 export * from "./privatemd/index.js";
 
 export * from "./links/index.js";
+
+export * from "./guards/index.js";
