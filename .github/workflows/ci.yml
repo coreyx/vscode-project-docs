@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# A new push to the same branch makes the previous run's results moot, so cancel it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: test (${{ matrix.os }}, node ${{ matrix.node }})
@@ -66,6 +71,7 @@ jobs:
   wsl:
     name: core tests inside WSL
     runs-on: windows-latest
+    timeout-minutes: 45
     defaults:
       run:
         shell: wsl-bash {0}
@@ -74,12 +80,17 @@ jobs:
       - uses: Vampire/setup-wsl@v7
         with:
           distribution: Ubuntu-24.04
-          additional-packages: curl ca-certificates rsync
+          additional-packages: curl ca-certificates rsync xz-utils
+      # The official tarball installs in seconds, where the apt route took many minutes in WSL.
       # setup-wsl runs commands as root, so no sudo.
       - name: Install Node 22 in WSL
         run: |
-          curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-          apt-get install -y nodejs
+          base=https://nodejs.org/dist/latest-v22.x
+          file=$(curl -fsSL "$base/SHASUMS256.txt" | grep -o 'node-v[0-9.]*-linux-x64.tar.xz' | head -1)
+          curl -fsSLO "$base/$file"
+          curl -fsSL "$base/SHASUMS256.txt" | grep " $file\$" | sha256sum -c -
+          tar -xJf "$file" -C /usr/local --strip-components=1
+          node --version
       # Tests run from the WSL filesystem, with a second fixture folder on the Windows drive, so
       # they cover a repo in WSL linked to a vault on C: (REQ-2.0.4, REQ-4.0.2).
       - name: Copy the checkout into the WSL filesystem
