@@ -164,7 +164,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     8. Compute the bulk guard (decision 12).
     9. Make the planner pure: no I/O apart from the injected content reader.
 
-- [ ] **TASK-14: Add the executor and journal (`exec/`)**
+- [x] **TASK-14: Add the executor and journal (`exec/`)**
   - **Associated Acceptance Criteria**: `3.2`, `19.2`
   - **Concrete Steps**:
     1. Persist the plan to `journal.json` before the first action.

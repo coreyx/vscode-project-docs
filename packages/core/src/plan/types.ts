@@ -80,6 +80,11 @@ export type Action =
       readonly targetLineEnding: LineEnding;
       /** Whether this replaces an existing, different file on the target side. */
       readonly overwrites: boolean;
+      /**
+       * The target's hash when planned (null: no file). If the target has changed since, the copy
+       * is skipped rather than overwriting an edit the planner never saw.
+       */
+      readonly expectTargetHash: string | null;
       readonly update: IndexUpdate;
     }
   | {

@@ -394,6 +394,7 @@ class Planner {
       hash: file.hash,
       targetLineEnding,
       overwrites: target !== undefined && target.hash !== file.hash,
+      expectTargetHash: target?.hash ?? null,
       update,
     });
   }

@@ -32,3 +32,5 @@ export * from "./guards/index.js";
 export * from "./merge/index.js";
 
 export * from "./plan/index.js";
+
+export * from "./exec/index.js";

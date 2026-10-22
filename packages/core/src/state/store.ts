@@ -213,6 +213,20 @@ export class StateStore {
     await rm(this.file("pending-bulk.json"), { force: true });
   }
 
+  /** Consecutive failed writes per key, so repeated failures can be surfaced (TASK-14). */
+  async loadFailures(): Promise<Record<string, number>> {
+    const value = await this.readJson(this.file("failures.json"));
+    return value && typeof value === "object" ? (value as Record<string, number>) : {};
+  }
+
+  async saveFailures(failures: Record<string, number>): Promise<void> {
+    if (Object.keys(failures).length === 0) {
+      await rm(this.file("failures.json"), { force: true });
+      return;
+    }
+    await this.writeJson(this.file("failures.json"), failures);
+  }
+
   /** Creates the state folder if needed. */
   async ensure(): Promise<void> {
     await mkdir(this.dir, { recursive: true });
