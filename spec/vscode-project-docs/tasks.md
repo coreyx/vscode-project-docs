@@ -278,7 +278,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     2. Offer "Replace real values with placeholders" on a change held back for real values, applying `replaceRealValues` to the vault file.
     3. Test that the hostname case from 13.3 ends synced, and that no real value appears in the UI or the log.
 
-- [ ] **TASK-26: Add decoded views in VS Code**
+- [x] **TASK-26: Add decoded views in VS Code**
   - **Associated Acceptance Criteria**: `14.2`, `14.4`, `15.3`
   - **Concrete Steps**:
     1. Add a `TextDocumentContentProvider` for `project-docs-decoded:`, with live refresh when the source or PRIVATE.md changes, and a tab title ending "(Decoded: real values shown)".

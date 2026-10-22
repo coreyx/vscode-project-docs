@@ -14,6 +14,7 @@ import {
   SUMMARY_SCHEME,
   promptBulk,
 } from "./conflicts/prompts.js";
+import { DecodedView } from "./decoded/view.js";
 import { PrivacyDiagnostics, RealValueFix } from "./privacy/diagnostics.js";
 import { RuleControls } from "./rules/controls.js";
 import { SyncController } from "./sync/controller.js";
@@ -33,6 +34,8 @@ export interface ProjectDocsApi {
   readonly rules: RuleControls;
   /** The Problems panel's privacy diagnostics. */
   readonly diagnostics: PrivacyDiagnostics;
+  /** Decoded views of coded docs. */
+  readonly decoded: DecodedView;
 }
 
 /** The workspace's repo: the first folder, which is where Project Docs looks for a link. */
@@ -53,6 +56,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
   const rules = new RuleControls(() => controller);
   const diagnostics = new PrivacyDiagnostics(() => controller);
   const realValueFix = new RealValueFix(() => controller);
+  const decoded = new DecodedView(() => controller);
   stateEmitter.event((state) => {
     statusBar.show(state);
     rules.refresh();
@@ -63,6 +67,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     rules,
     diagnostics,
     realValueFix,
+    decoded,
     vscode.window.registerTreeDataProvider("projectDocs.problems", problems),
   );
   context.subscriptions.push(
@@ -99,6 +104,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
       void diagnostics.refresh();
     });
     await controller.start();
+    await decoded.refreshMode();
   };
 
   const stopController = async () => {
@@ -107,7 +113,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     controller = null;
     statusBar.show(null);
     rules.refresh();
-    await Promise.all([problems.refresh(), diagnostics.refresh()]);
+    await Promise.all([problems.refresh(), diagnostics.refresh(), decoded.refreshMode()]);
   };
 
   const afterLink = async (repoRoot: string) => {
@@ -130,6 +136,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     problems,
     rules,
     diagnostics,
+    decoded,
   };
 
   context.subscriptions.push(

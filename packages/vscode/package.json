@@ -129,6 +129,29 @@
         "title": "Replace Real Values with Placeholders",
         "category": "Project Docs",
         "icon": "$(replace-all)"
+      },
+      {
+        "command": "projectDocs.toggleDecoded",
+        "title": "Toggle Decoded View",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.showDecoded",
+        "title": "Show Decoded (Real Values)",
+        "category": "Project Docs",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "projectDocs.showCoded",
+        "title": "Show Coded",
+        "category": "Project Docs",
+        "icon": "$(eye-closed)"
+      },
+      {
+        "command": "projectDocs.openDecodedPreview",
+        "title": "Open Decoded Preview",
+        "category": "Project Docs",
+        "icon": "$(open-preview)"
       }
     ],
     "menus": {
@@ -200,12 +223,38 @@
         {
           "command": "projectDocs.replaceRealValues",
           "when": "false"
+        },
+        {
+          "command": "projectDocs.toggleDecoded",
+          "when": "projectDocs.decodable"
+        },
+        {
+          "command": "projectDocs.showDecoded",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.showCoded",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.openDecodedPreview",
+          "when": "projectDocs.decodable"
         }
       ],
       "editor/title": [
         {
           "command": "projectDocs.resolveConflict",
           "when": "resourcePath in projectDocs.mergeOutputs",
+          "group": "navigation"
+        },
+        {
+          "command": "projectDocs.showDecoded",
+          "when": "projectDocs.decodable && resourceScheme == file && resourceLangId == markdown",
+          "group": "navigation"
+        },
+        {
+          "command": "projectDocs.showCoded",
+          "when": "resourceScheme == project-docs-decoded",
           "group": "navigation"
         }
       ],
