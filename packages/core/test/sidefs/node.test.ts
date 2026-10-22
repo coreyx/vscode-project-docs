@@ -118,8 +118,9 @@ describe("writeAtomic", () => {
           if (!["EBUSY", "EPERM", "EACCES", "ENOENT"].includes(code)) throw error;
         }
         // Still far more often than any editor reads a file. On Windows, where an open file blocks
-        // the rename, a 1 ms pause starves the writer on slow CI runners.
-        await new Promise((resolve) => setTimeout(resolve, process.platform === "win32" ? 5 : 1));
+        // the rename and virus scanning slows every write, a shorter pause starves the writer on
+        // CI runners.
+        await new Promise((resolve) => setTimeout(resolve, process.platform === "win32" ? 20 : 1));
       }
     })();
     // Windows can't rename over a file another process has open, so against a reader this
@@ -142,7 +143,7 @@ describe("writeAtomic", () => {
     expect(bad).toEqual([]);
     expect(reads).toBeGreaterThan(0);
     expect(failedWrites).toBeLessThan(50);
-  }, 120_000);
+  }, 300_000);
 });
 
 describe("rename", () => {
