@@ -21,8 +21,15 @@ export interface IndexEntry {
   readonly baseHash: string;
   readonly repoLineEnding: LineEnding;
   readonly vaultLineEnding: LineEnding;
-  /** Whether the key is in a normal state, or frozen until the user acts (design decision 5). */
-  readonly state: "synced" | "conflict" | "heldBack" | "skipped";
+  /**
+   * `synced` keys have an agreed base. `conflict` and `heldBack` keys are frozen until the user
+   * acts (design decision 5). `skipped` keys can't sync for now. `vaultOnly` keys are private vault
+   * files that never sync; for them `baseHash` is the vault content last seen, so the planner only
+   * re-reads them when they change, and the guards can tell a link to them is private. `detached`
+   * keys are repo copies of notes that became private: left in place, never synced, and reported
+   * until the user removes them (design decision 9).
+   */
+  readonly state: "synced" | "conflict" | "heldBack" | "skipped" | "vaultOnly" | "detached";
   /** Why the key isn't synced; placeholders only, never real values. */
   readonly reasons: readonly string[];
 }

@@ -151,7 +151,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     1. Wrap `node-diff3` on LF-normalized line arrays, returning a clean result or conflict hunks.
     2. Test non-overlapping edits, overlapping edits, identical edits, empty files, and files without a trailing newline.
 
-- [ ] **TASK-13: Add the planner (`plan/`)**
+- [x] **TASK-13: Add the planner (`plan/`)**
   - **Associated Acceptance Criteria**: `1.3`, `4.1`, `5.1`, `5.2`, `6.1`, `6.4`, `7.1`, `8.2`, `8.3`, `11.1`, `11.2`
   - **Concrete Steps**:
     1. Implement the decision table in design.md for Markdown, and the rule modifiers (`repo-only`, `repo-to-vault`, `private`).
