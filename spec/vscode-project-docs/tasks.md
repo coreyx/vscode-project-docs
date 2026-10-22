@@ -256,7 +256,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 ### Milestone 7: The extension shows status, rules, privacy problems and decoded views
 
-- [ ] **TASK-23: Add the status bar, the Project Docs view and the log**
+- [x] **TASK-23: Add the status bar, the Project Docs view and the log**
   - **Associated Acceptance Criteria**: `17.1`
   - **Concrete Steps**:
     1. Add a status bar item showing Up to date, Syncing, Paused or N need attention, which opens the view.

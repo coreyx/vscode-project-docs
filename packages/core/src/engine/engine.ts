@@ -291,6 +291,9 @@ export async function syncOnce(project: Project, options: SyncOptions = {}): Pro
         bulk: planned.bulk,
         plannedAt: new Date().toISOString(),
       });
+      await project.logger.warn(
+        `waiting for confirmation: the pass would delete or overwrite ${planned.bulk.destructive} files`,
+      );
       return { outcome: "bulk", plan: planned };
     }
     await project.store.clearPendingBulk();
@@ -299,6 +302,14 @@ export async function syncOnce(project: Project, options: SyncOptions = {}): Pro
       ctx,
       replayed?.index ?? (await project.store.loadIndex()).index,
     );
+    // One line per pass that did or found something, so the log reads as a history of the sync
+    // without a line for every quiet rescan.
+    if (result.applied || result.failed.length || problems.length || planned.notices.length) {
+      await project.logger.info(
+        `pass: ${result.applied} applied, ${result.stale} skipped as stale, ${result.failed.length} failed, ` +
+          `${planned.notices.length + problems.length} to report`,
+      );
+    }
     return { outcome: "synced", result, plan: planned, problems };
   } finally {
     if (ownLock) await lock.release();

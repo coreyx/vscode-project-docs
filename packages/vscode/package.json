@@ -81,6 +81,16 @@
         "title": "Complete Merge",
         "category": "Project Docs",
         "icon": "$(check)"
+      },
+      {
+        "command": "projectDocs.openFile",
+        "title": "Open File",
+        "category": "Project Docs"
+      },
+      {
+        "command": "projectDocs.showLog",
+        "title": "Show Log",
+        "category": "Project Docs"
       }
     ],
     "menus": {
@@ -116,6 +126,14 @@
         {
           "command": "projectDocs.resolveConflict",
           "when": "resourcePath in projectDocs.mergeOutputs"
+        },
+        {
+          "command": "projectDocs.openFile",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.showLog",
+          "when": "projectDocs.linked"
         }
       ],
       "editor/title": [
@@ -126,6 +144,21 @@
         }
       ]
     },
+    "views": {
+      "explorer": [
+        {
+          "id": "projectDocs.problems",
+          "name": "Project Docs",
+          "when": "projectDocs.linked"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "projectDocs.problems",
+        "contents": "Nothing needs your attention: the repo and the vault are in sync.\n[Show Log](command:projectDocs.showLog)"
+      }
+    ],
     "jsonValidation": [
       {
         "fileMatch": ".project-docs.json",

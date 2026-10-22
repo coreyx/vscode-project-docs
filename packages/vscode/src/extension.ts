@@ -2,8 +2,9 @@
  * Node entry point of the Project Docs extension: registers commands, and runs a sync controller
  * for the workspace's repo while it's linked.
  */
+import * as path from "node:path";
 import * as vscode from "vscode";
-import { readLink, type SchedulerState } from "@specdevship/project-docs-core";
+import { LOG_FILE, readLink, type SchedulerState } from "@specdevship/project-docs-core";
 import { linkRepo, offerRelink, unlinkRepo, vscodePrompter } from "./link/commands.js";
 import type { FlowResult, Prompter } from "./link/flow.js";
 import { CONFLICT_SCHEME, ConflictResolver, ConflictVersionProvider } from "./conflicts/merge.js";
@@ -14,6 +15,7 @@ import {
   promptBulk,
 } from "./conflicts/prompts.js";
 import { SyncController } from "./sync/controller.js";
+import { ProblemsView, StatusBar } from "./ui/views.js";
 
 /** What the extension exposes to its integration tests. */
 export interface ProjectDocsApi {
@@ -23,6 +25,8 @@ export interface ProjectDocsApi {
   controller(): SyncController | null;
   /** Opens and completes conflict resolutions. */
   readonly conflicts: ConflictResolver;
+  /** The Project Docs view's contents. */
+  readonly problems: ProblemsView;
 }
 
 /** The workspace's repo: the first folder, which is where Project Docs looks for a link. */
@@ -38,6 +42,16 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
   const conflicts = new ConflictResolver(() => controller);
   const notifier = new ConflictNotifier((key) => conflicts.open(key));
   const summary = new BulkSummaryProvider();
+  const statusBar = new StatusBar();
+  const problems = new ProblemsView(() => controller);
+  stateEmitter.event((state) => {
+    statusBar.show(state);
+    void problems.refresh();
+  });
+  context.subscriptions.push(
+    statusBar,
+    vscode.window.registerTreeDataProvider("projectDocs.problems", problems),
+  );
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(
       CONFLICT_SCHEME,
@@ -73,6 +87,8 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     await controller?.stop();
     controller?.dispose();
     controller = null;
+    statusBar.show(null);
+    await problems.refresh();
   };
 
   const afterLink = async (repoRoot: string) => {
@@ -92,6 +108,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     },
     controller: () => controller,
     conflicts,
+    problems,
   };
 
   context.subscriptions.push(
@@ -122,6 +139,32 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     vscode.commands.registerCommand("projectDocs.openConflict", (key: string) =>
       conflicts.open(key),
     ),
+    vscode.commands.registerCommand("projectDocs.openFile", async (...files: string[]) => {
+      // Opens the first copy that exists; see resolveAction for why there can be two.
+      for (const file of files) {
+        const uri = vscode.Uri.file(file);
+        try {
+          await vscode.workspace.fs.stat(uri);
+        } catch {
+          continue;
+        }
+        await vscode.window.showTextDocument(uri);
+        return;
+      }
+      void vscode.window.showWarningMessage("Project Docs couldn't find that file on either side.");
+    }),
+    vscode.commands.registerCommand("projectDocs.showLog", async () => {
+      const project = controller?.linkedProject;
+      if (!project) return;
+      const log = vscode.Uri.file(path.join(project.store.dir, "log", LOG_FILE));
+      try {
+        await vscode.workspace.fs.stat(log);
+      } catch {
+        void vscode.window.showInformationMessage("Project Docs hasn't logged anything yet.");
+        return;
+      }
+      await vscode.window.showTextDocument(log, { preview: true });
+    }),
     vscode.commands.registerCommand("projectDocs.resolveConflict", (uri?: vscode.Uri) => {
       const target = uri ?? vscode.window.activeTextEditor?.document.uri;
       return target ? conflicts.completeFromOutput(target.fsPath) : false;
