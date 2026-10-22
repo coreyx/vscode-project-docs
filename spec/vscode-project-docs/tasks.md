@@ -204,7 +204,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     3. Use the `trash` package for repo-side deletes.
     4. Integration-test the three commands, the lock refusal (naming VS Code), and the not-linked error.
 
-- [ ] **TASK-18: Add a performance benchmark**
+- [x] **TASK-18: Add a performance benchmark**
   - **Associated Acceptance Criteria**: `20.1`
   - **Concrete Steps**:
     1. Add a benchmark that creates 1,000 Markdown files of 50 KB and times the first sync through the core.
