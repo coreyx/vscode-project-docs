@@ -35,5 +35,5 @@ describe("the pass log (REQ-17.0.4)", () => {
     for (let i = 0; i < 25; i++) await rm(path.join(linked.docs, `d${i}.md`));
     expect((await syncOnce(project)).outcome).toBe("bulk");
     expect(await logText()).toMatch(/WARN waiting for confirmation: .* 25 files/);
-  }, 30_000);
+  });
 });

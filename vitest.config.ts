@@ -16,6 +16,9 @@ export default defineConfig({
   },
   ssr: { resolve: { conditions: ["source"], externalConditions: ["source"] } },
   test: {
+    // Tests that sync dozens of real files take several seconds on shared CI runners, past Vitest's
+    // 5-second default.
+    testTimeout: 30_000,
     include: [
       "packages/core/test/**/*.test.ts",
       "packages/cli/test/**/*.test.ts",
@@ -38,6 +41,7 @@ export default defineConfig({
         "packages/vscode/src/sync/controller.ts",
         "packages/vscode/src/conflicts/**",
         "packages/vscode/src/ui/views.ts",
+        "packages/vscode/src/rules/controls.ts",
       ],
       reporter: ["text", "html", "json-summary"],
       thresholds: {

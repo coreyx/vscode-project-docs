@@ -181,10 +181,22 @@ describe("SyncScheduler", () => {
     if (isLockHandle(thief)) await thief.release();
   });
 
+  it("lets a pass in progress finish when paused, then stays paused", async () => {
+    const s = await scheduler("w1");
+    await s.start();
+    await writeFile(path.join(linked.docs, "during.md"), "d\n");
+    let passDone = false;
+    const pass = s.syncNow().then(() => (passDone = true));
+    await s.pause();
+    expect(passDone).toBe(true);
+    expect(s.state).toEqual({ state: "paused" });
+    await pass;
+  });
+
   it("pauses and resumes (REQ-17.0.5)", async () => {
     const s = await scheduler("w1");
     await s.start();
-    s.pause();
+    await s.pause();
     expect(s.state).toEqual({ state: "paused" });
     await writeFile(path.join(linked.docs, "while-paused.md"), "p\n");
     s.notify();
@@ -207,8 +219,7 @@ describe("SyncScheduler", () => {
     expect(s.state).toEqual({ state: "idle" });
     await s.syncNow({ allowBulk: true });
     expect(await fileIs(path.join(linked.vaultFolder, "d0.md"), "0\n")()).toBe(false);
-    // Several passes over 30 files take seconds on Windows CI runners.
-  }, 30_000);
+  });
 
   it("reports attention when a pass leaves something for the user", async () => {
     await writeFile(path.join(linked.vaultFolder, "bad.md"), "---\nproject-docs: typo\n---\n");

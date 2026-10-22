@@ -63,7 +63,7 @@ describe("the Project Docs view", function () {
     // A conflict (REQ-5).
     await writeFile(path.join(docs, "conflict.md"), "line\n");
     await eventually(() => docsApi.controller()?.state.state === "idle", 5_000);
-    docsApi.controller()?.pause();
+    await docsApi.controller()?.pause();
     await writeFile(path.join(docs, "conflict.md"), "repo\n");
     await writeFile(path.join(vaultFolder, "conflict.md"), "vault\n");
     // An invalid rule (REQ-8), a held-back real value (REQ-13), a file that isn't UTF-8 (REQ-16).

@@ -183,18 +183,20 @@ export class SyncScheduler {
       return;
     }
     this.setState({ state: "syncing" });
+    // A pause that arrived while this pass ran wins over the pass's own result.
+    const settle = (state: SchedulerState) =>
+      this.setState(this.paused ? { state: "paused" } : state);
     try {
       const outcome = await syncOnce(this.options.project, { lock, allowBulk, cache: this.cache });
       this.options.onPass?.(outcome);
-      if (outcome.outcome === "bulk") this.setState({ state: "bulk", plan: outcome.plan });
-      else if (outcome.outcome === "locked")
-        this.setState({ state: "elsewhere", heldBy: outcome.heldBy });
+      if (outcome.outcome === "bulk") settle({ state: "bulk", plan: outcome.plan });
+      else if (outcome.outcome === "locked") settle({ state: "elsewhere", heldBy: outcome.heldBy });
       else {
         const count = outcome.plan.notices.length + outcome.result.failed.length;
-        this.setState(count > 0 ? { state: "attention", count } : { state: "idle" });
+        settle(count > 0 ? { state: "attention", count } : { state: "idle" });
       }
     } catch (error) {
-      this.setState({
+      settle({
         state: "error",
         message: error instanceof Error ? error.message : String(error),
       });
@@ -226,11 +228,16 @@ export class SyncScheduler {
   }
 
   /** Stops syncing until resumed (REQ-17.0.5). */
-  pause(): void {
+  /**
+   * Pauses syncing. A pass already running can't be stopped halfway, so it finishes; the returned
+   * promise resolves once it has, after which no pass runs until `resume`.
+   */
+  async pause(): Promise<void> {
     this.paused = true;
     if (this.debounce !== null) this.timers.clearTimeout(this.debounce);
     this.debounce = null;
     this.setState({ state: "paused" });
+    await this.running;
   }
 
   /** Resumes and catches up on anything that changed while paused. */

@@ -102,8 +102,9 @@ export class SyncController implements vscode.Disposable {
     return this.scheduler?.syncNow(options) ?? Promise.resolve();
   }
 
-  pause(): void {
-    this.scheduler?.pause();
+  /** Pauses syncing; resolves once any pass already running has finished. */
+  pause(): Promise<void> {
+    return this.scheduler?.pause() ?? Promise.resolve();
   }
 
   resume(): Promise<void> {
