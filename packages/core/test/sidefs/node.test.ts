@@ -117,6 +117,9 @@ describe("writeAtomic", () => {
           const code = (error as NodeJS.ErrnoException).code ?? "";
           if (!["EBUSY", "EPERM", "EACCES", "ENOENT"].includes(code)) throw error;
         }
+        // Pause between reads like a real reader (an editor, Obsidian) does. A reader that never
+        // lets go starves Windows' rename-over-open-file, which isn't what this test is about.
+        await new Promise((resolve) => setTimeout(resolve, 1));
       }
     })();
     for (let i = 0; i < 1000; i++) await fs.writeAtomic("busy.md", i % 2 ? a : b);

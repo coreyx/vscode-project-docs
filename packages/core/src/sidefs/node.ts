@@ -28,7 +28,9 @@ export interface NodeSideFsOptions {
 // virus scanner, Obsidian reading it) has open without delete sharing. Those errors clear within
 // moments, so the operation is retried briefly before giving up.
 const RETRYABLE = new Set(["EPERM", "EBUSY", "EACCES"]);
-const RETRY_DELAYS_MS = [10, 25, 50, 100, 200, 400, 800];
+// About six seconds in total: long enough for an indexer or virus scan to let go, short enough
+// that a file that stays locked surfaces as a failed write the next pass retries.
+const RETRY_DELAYS_MS = [10, 25, 50, 100, 200, 400, 800, 1600, 2000];
 
 async function withRetries<T>(operation: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
