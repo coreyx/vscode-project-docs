@@ -400,6 +400,10 @@ describe("held-back changes (REQ-13, design decision 5)", () => {
     const result = await plan(input(w));
     expect(summary(result.actions)).toEqual(["record a.md heldBack"]);
     expect(JSON.stringify(result).toLowerCase()).not.toContain("desk-fake01");
+    // The notice offers the fix only when a real value is among the reasons.
+    expect(result.notices).toMatchObject([{ code: "held-back", fix: "replace-real-values" }]);
+    w.vault["a.md"] = "a [[today]]\n";
+    expect((await plan(input(w))).notices[0]?.fix).toBeUndefined();
   });
 });
 

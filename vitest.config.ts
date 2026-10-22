@@ -42,6 +42,7 @@ export default defineConfig({
         "packages/vscode/src/conflicts/**",
         "packages/vscode/src/ui/views.ts",
         "packages/vscode/src/rules/controls.ts",
+        "packages/vscode/src/privacy/diagnostics.ts",
       ],
       reporter: ["text", "html", "json-summary"],
       thresholds: {

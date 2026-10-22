@@ -271,7 +271,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     3. Add the "no longer synced: move repo copy to trash" offer (decision 9), and the `repo-only` vault-copy trash confirmation.
     4. Test that each change takes at most three clicks and changes only the property.
 
-- [ ] **TASK-25: Add privacy diagnostics and the real-value fix**
+- [x] **TASK-25: Add privacy diagnostics and the real-value fix**
   - **Associated Acceptance Criteria**: `13.3`, `13.4`
   - **Concrete Steps**:
     1. Add diagnostics on repo docs that contain real values or link to private notes, naming placeholders only.

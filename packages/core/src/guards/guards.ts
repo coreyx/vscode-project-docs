@@ -7,7 +7,7 @@
  * which the user is told about). Reasons name placeholders and link text, never real values.
  */
 import { linkTargets, type LinkResolver, type ResolvedLink } from "../links/index.js";
-import { findRealValues, type PrivateMdMapping } from "../privatemd/index.js";
+import { findRealValueRanges, findRealValues, type PrivateMdMapping } from "../privatemd/index.js";
 import { readRule } from "../rules/index.js";
 import { isNeverSynced } from "../scan/index.js";
 import { INVALID_PRIVATE_FILES, type PrivateFilesList } from "./private-files.js";
@@ -162,4 +162,44 @@ function realValueReasons(text: string, mapping: PrivateMdMapping | null): Guard
     });
   }
   return reasons;
+}
+
+/** Something private in a repo doc, located so an editor can mark it. Contains no real value. */
+export interface RepoDocFinding {
+  readonly code: "links-private" | "real-value";
+  /** UTF-16 offsets in the text. */
+  readonly start: number;
+  readonly end: number;
+  readonly message: string;
+  readonly placeholder?: string;
+}
+
+/**
+ * Checks a repo doc for what must not be committed (REQ-13.0.5): links to private notes, and real
+ * values from PRIVATE.md. The guards keep these from arriving through sync, but a doc can also be
+ * edited in the repo directly, so the editor points them out before a commit.
+ */
+export function checkRepoDoc(text: string, key: string, ctx: GuardContext): RepoDocFinding[] {
+  const findings: RepoDocFinding[] = [];
+  for (const { link, resolution } of linkTargets(text, key, ctx.resolver)) {
+    if (resolution.where !== "inside" || !isPrivateTarget(resolution.key, ctx)) continue;
+    findings.push({
+      code: "links-private",
+      start: link.start,
+      end: link.end,
+      message: "Links to a private note, whose name must not be committed.",
+    });
+  }
+  if (ctx.mapping) {
+    for (const range of findRealValueRanges(text, ctx.mapping)) {
+      findings.push({
+        code: "real-value",
+        start: range.start,
+        end: range.end,
+        placeholder: range.placeholder,
+        message: `The real value of ${range.placeholder} from PRIVATE.md; use the placeholder instead.`,
+      });
+    }
+  }
+  return findings.sort((a, b) => a.start - b.start);
 }

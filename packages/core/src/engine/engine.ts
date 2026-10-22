@@ -9,6 +9,7 @@ import { execute, replayJournal, type PassResult } from "../exec/index.js";
 import {
   INVALID_PRIVATE_FILES,
   parsePrivateFilesList,
+  type GuardContext,
   type PrivateFilesList,
 } from "../guards/index.js";
 import { createResolver } from "../links/index.js";
@@ -22,7 +23,12 @@ import {
 import { createFileLogger, type Logger } from "../log/index.js";
 import { detectWsl, isWindowsFs, probeCaseInsensitive, toKey } from "../paths/index.js";
 import { plan, type Plan } from "../plan/index.js";
-import { PrivateMdError, loadPlaceholders, type PrivateMdMapping } from "../privatemd/index.js";
+import {
+  PrivateMdError,
+  loadPlaceholders,
+  replaceRealValues,
+  type PrivateMdMapping,
+} from "../privatemd/index.js";
 import { COMMITTED_FILE, readLink, type CommittedLink, type LocalLink } from "../records/index.js";
 import { decodeUtf8, scan, type StatCache } from "../scan/index.js";
 import { createNodeSideFs, vaultTrash, type SideFs, type TrashFn } from "../sidefs/index.js";
@@ -237,6 +243,52 @@ export async function planPass(
     },
   });
   return { plan: planned, problems };
+}
+
+/**
+ * What the privacy guards need, for checking text outside a pass, such as a repo doc open in an
+ * editor (REQ-13.0.5). Notes count as private by the same evidence the planner uses: the private
+ * subfolder, the private-files list, and the index's record of notes marked private.
+ */
+export async function privacyContext(project: Project): Promise<GuardContext> {
+  const { committed, local } = project;
+  const { mapping } = await loadMapping(project.repoRoot);
+  project.privateMd.current = mapping;
+  const [{ index }, privateFiles, vaultFiles] = await Promise.all([
+    project.store.loadIndex(),
+    loadPrivateFiles(local.vaultFolderPath),
+    listVault(local.vaultRoot),
+  ]);
+  return {
+    privateSubfolder: committed.settings.privateSubfolder,
+    linkNoteKey: project.linkNoteKey,
+    privateFiles,
+    allowLinksOutside: committed.settings.allowLinksOutsideProjectFolder,
+    mapping,
+    resolver: createResolver({ projectFolder: committed.vaultFolder, files: vaultFiles }),
+    isPrivateNote: (key) => {
+      const entry = index.entries[key];
+      return (
+        entry?.state === "vaultOnly" && entry.reasons.some((r) => r.includes("marked private"))
+      );
+    },
+  };
+}
+
+/**
+ * The fix offered for a change held back for real values (REQ-13.0.3): replaces them with their
+ * placeholders in the vault copy. Returns false when there was nothing it could replace, such as a
+ * value inside a longer word, which the user has to edit by hand.
+ */
+export async function replaceRealValuesInVault(project: Project, key: string): Promise<boolean> {
+  const { mapping } = await loadMapping(project.repoRoot);
+  if (!mapping || !(await project.vault.exists(key))) return false;
+  const text = decodeUtf8(await project.vault.read(key));
+  if (text === null) return false;
+  const replaced = replaceRealValues(text, mapping);
+  if (replaced === text) return false;
+  await project.vault.writeAtomic(key, new TextEncoder().encode(replaced));
+  return true;
 }
 
 /** The outcome of asking for a sync pass. */

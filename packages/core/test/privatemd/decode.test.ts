@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   PrivateMdError,
+  findRealValueRanges,
   findRealValues,
   loadPlaceholders,
   parseCodeSpan,
@@ -145,6 +146,30 @@ describe("findRealValues", () => {
   it("ignores real values shorter than 4 characters", () => {
     expect(findRealValues("xy", mapping)).toEqual([]);
     expect(findRealValues("anything", new Map([["a", "xy"]]))).toEqual([]);
+  });
+});
+
+describe("findRealValueRanges (REQ-13.0.5)", () => {
+  it("locates each occurrence in any case, naming placeholders only", () => {
+    const text = "ssh desk-fake01 or DESK-FAKE01x";
+    const ranges = findRealValueRanges(text, mapping);
+    expect(ranges.map((r) => [text.slice(r.start, r.end), r.placeholder])).toEqual([
+      ["desk-fake01", "myhost"],
+      ["DESK-FAKE01", "myhost"],
+    ]);
+    expect(JSON.stringify(ranges).toLowerCase()).not.toContain("desk-fake01");
+  });
+
+  it("prefers the longer value where two overlap, and ignores short ones", () => {
+    const nested = new Map([
+      ["short", "otter-0000"],
+      ["long", "fake-otter-0000"],
+      ["tiny", "xy"],
+    ]);
+    expect(findRealValueRanges("fake-otter-0000 xy", nested)).toEqual([
+      { start: 0, end: 15, placeholder: "long" },
+    ]);
+    expect(findRealValueRanges("anything", new Map())).toEqual([]);
   });
 });
 

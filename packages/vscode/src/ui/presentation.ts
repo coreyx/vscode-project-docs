@@ -56,6 +56,8 @@ export interface StatusItem {
   readonly path: string;
   readonly message: string;
   readonly reasons: readonly string[];
+  /** A fix the system can apply, such as replacing real values with placeholders. */
+  readonly fix?: string;
 }
 
 /** The action that resolves a problem, as a VS Code command and its arguments. */

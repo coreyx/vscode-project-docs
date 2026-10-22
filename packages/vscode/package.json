@@ -123,6 +123,12 @@
         "title": "Move Vault Copy to Trash",
         "category": "Project Docs",
         "icon": "$(trash)"
+      },
+      {
+        "command": "projectDocs.replaceRealValues",
+        "title": "Replace Real Values with Placeholders",
+        "category": "Project Docs",
+        "icon": "$(replace-all)"
       }
     ],
     "menus": {
@@ -190,6 +196,10 @@
         {
           "command": "projectDocs.trashVaultCopy",
           "when": "false"
+        },
+        {
+          "command": "projectDocs.replaceRealValues",
+          "when": "false"
         }
       ],
       "editor/title": [
@@ -229,6 +239,11 @@
         {
           "command": "projectDocs.trashVaultCopy",
           "when": "view == projectDocs.problems && viewItem == projectDocs.problem.repo-only-vault-copy",
+          "group": "inline"
+        },
+        {
+          "command": "projectDocs.replaceRealValues",
+          "when": "view == projectDocs.problems && viewItem == projectDocs.problem.held-back.replace-real-values",
           "group": "inline"
         }
       ]

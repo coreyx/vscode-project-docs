@@ -65,6 +65,8 @@ export interface Notice {
   /** Contains no real value. */
   readonly message: string;
   readonly reasons?: readonly string[];
+  /** A fix the system can apply for the user: replacing real values with their placeholders. */
+  readonly fix?: "replace-real-values";
 }
 
 /** One step of a pass. Every action says how the index changes once it has been carried out. */

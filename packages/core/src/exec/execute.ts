@@ -319,6 +319,7 @@ async function writeStatus(
       path: n.key,
       message: n.message,
       reasons: n.reasons ?? [],
+      ...(n.fix ? { fix: n.fix } : {}),
     })),
     ...failed
       .filter((f) => f.consecutive >= REPORT_FAILURES_AFTER)

@@ -14,6 +14,7 @@ import {
   SUMMARY_SCHEME,
   promptBulk,
 } from "./conflicts/prompts.js";
+import { PrivacyDiagnostics, RealValueFix } from "./privacy/diagnostics.js";
 import { RuleControls } from "./rules/controls.js";
 import { SyncController } from "./sync/controller.js";
 import { ProblemsView, StatusBar } from "./ui/views.js";
@@ -30,6 +31,8 @@ export interface ProjectDocsApi {
   readonly problems: ProblemsView;
   /** The sync rule controls. */
   readonly rules: RuleControls;
+  /** The Problems panel's privacy diagnostics. */
+  readonly diagnostics: PrivacyDiagnostics;
 }
 
 /** The workspace's repo: the first folder, which is where Project Docs looks for a link. */
@@ -48,6 +51,8 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
   const statusBar = new StatusBar();
   const problems = new ProblemsView(() => controller);
   const rules = new RuleControls(() => controller);
+  const diagnostics = new PrivacyDiagnostics(() => controller);
+  const realValueFix = new RealValueFix(() => controller);
   stateEmitter.event((state) => {
     statusBar.show(state);
     rules.refresh();
@@ -56,6 +61,8 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
   context.subscriptions.push(
     statusBar,
     rules,
+    diagnostics,
+    realValueFix,
     vscode.window.registerTreeDataProvider("projectDocs.problems", problems),
   );
   context.subscriptions.push(
@@ -88,6 +95,8 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     controller.onDidPass((outcome) => {
       notifier.onPass(outcome);
       rules.onPass(outcome);
+      realValueFix.onPass(outcome);
+      void diagnostics.refresh();
     });
     await controller.start();
   };
@@ -98,7 +107,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     controller = null;
     statusBar.show(null);
     rules.refresh();
-    await problems.refresh();
+    await Promise.all([problems.refresh(), diagnostics.refresh()]);
   };
 
   const afterLink = async (repoRoot: string) => {
@@ -120,6 +129,7 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
     conflicts,
     problems,
     rules,
+    diagnostics,
   };
 
   context.subscriptions.push(

@@ -42,6 +42,33 @@ export function findRealValues(text: string, mapping: PrivateMdMapping): RealVal
   return findings;
 }
 
+/** Where a real value appears in text. Carries the placeholder, never the value. */
+export interface RealValueRange {
+  /** UTF-16 offsets of the occurrence. */
+  readonly start: number;
+  readonly end: number;
+  readonly placeholder: string;
+}
+
+/**
+ * Every occurrence of a real value, in any letter case, as offsets: what an editor needs to mark
+ * the text without the result ever holding the value itself. Longer values win where they overlap.
+ */
+export function findRealValueRanges(text: string, mapping: PrivateMdMapping): RealValueRange[] {
+  const values = checkedValues(mapping).sort(([a], [b]) => b.length - a.length);
+  if (values.length === 0) return [];
+  const byLower = new Map(values.map(([real, placeholder]) => [real.toLowerCase(), placeholder]));
+  const pattern = new RegExp(values.map(([real]) => escapeRegExp(real)).join("|"), "giu");
+  const ranges: RealValueRange[] = [];
+  for (const match of text.matchAll(pattern)) {
+    const placeholder = byLower.get(match[0].toLowerCase());
+    if (placeholder !== undefined) {
+      ranges.push({ start: match.index, end: match.index + match[0].length, placeholder });
+    }
+  }
+  return ranges;
+}
+
 const ALNUM = "[\\p{L}\\p{N}]";
 const IS_ALNUM = /^[\p{L}\p{N}]$/u;
 

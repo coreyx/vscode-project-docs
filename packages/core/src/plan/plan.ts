@@ -489,6 +489,9 @@ class Planner {
       code: "held-back",
       message: `${key} isn't synced to the repo until this is fixed`,
       reasons: messages,
+      ...(reasons.some((r) => r.code === "real-value")
+        ? { fix: "replace-real-values" as const }
+        : {}),
     });
   }
 

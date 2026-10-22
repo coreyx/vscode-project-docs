@@ -54,7 +54,8 @@ class ProblemItem extends vscode.TreeItem {
     this.tooltip = new vscode.MarkdownString(
       [problem.message, ...problem.reasons.map((r) => `- ${r}`)].join("\n\n"),
     );
-    this.contextValue = `projectDocs.problem.${problem.kind}`;
+    // The fix, when there is one, is part of the context value so the view can offer it inline.
+    this.contextValue = `projectDocs.problem.${problem.kind}${problem.fix ? `.${problem.fix}` : ""}`;
     this.iconPath = new vscode.ThemeIcon(problem.kind === "conflict" ? "git-merge" : "warning");
     const action = resolveAction(problem, roots, path.join);
     this.command = {

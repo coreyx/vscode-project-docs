@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_PRIVATE_FILES,
   INVALID_PRIVATE_FILES,
+  checkRepoDoc,
   checkVaultChange,
   inPrivateSubfolder,
   parsePrivateFilesList,
@@ -222,5 +223,24 @@ describe("changes held back from the repo (REQ-13)", () => {
     expect(checkVaultChange({ key: "guide.md", kind: "markdown", hash: "h" }, context())).toEqual({
       action: "allow",
     });
+  });
+});
+
+describe("checkRepoDoc (REQ-13.0.5)", () => {
+  it("locates links to private notes and real values, naming placeholders only", () => {
+    const text = "See [notes](private/server-notes.md) and [[marked]] on DESK-FAKE01.\n";
+    const findings = checkRepoDoc(text, "guide.md", context());
+    expect(findings.map((f) => [f.code, text.slice(f.start, f.end)])).toEqual([
+      ["links-private", "[notes](private/server-notes.md)"],
+      ["links-private", "[[marked]]"],
+      ["real-value", "DESK-FAKE01"],
+    ]);
+    expect(findings[2]?.message).toContain("myhost");
+    expect(findings.map((f) => f.message).join()).not.toContain("DESK-FAKE01");
+  });
+
+  it("leaves ordinary links, links outside the folder, and docs without PRIVATE.md alone", () => {
+    const text = "[[guide]] [[today]] DESK-FAKE01\n";
+    expect(checkRepoDoc(text, "a.md", context({ mapping: null }))).toEqual([]);
   });
 });
