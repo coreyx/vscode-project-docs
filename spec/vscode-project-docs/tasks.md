@@ -184,7 +184,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     5. Delete the state at random points, and assert that no file is deleted on either side.
     6. Confirm that coverage of the critical modules is at least 90%.
 
-- [ ] **TASK-16: Add the link records (`records/`)**
+- [x] **TASK-16: Add the link records (`records/`)**
   - **Associated Acceptance Criteria**: `2.1`, `2.2`, `2.5`, `2.6`, `2.7`, `2.8`, `2.9`
   - **Concrete Steps**:
     1. Implement the committed `.project-docs.json` and the local `.project-docs.local.json` with JSON schemas, a `format` field and `description` text. Reject absolute paths in the committed file.
