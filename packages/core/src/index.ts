@@ -10,3 +10,5 @@
 export const CORE_VERSION = "0.0.0";
 
 export * from "./paths/index.js";
+
+export * from "./sidefs/index.js";

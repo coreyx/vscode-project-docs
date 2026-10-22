@@ -47,7 +47,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
     4. Implement WSL translation (`wslpath` in WSL, `\\wsl.localhost\<distro>\` on Windows), `isWindowsFs` detection (Windows, or `/mnt/<drive>` in WSL), and case-sensitivity probing that never writes to the user's folders.
     5. Unit-test every rule, including `notes:draft.md`, `Plan.md`/`plan.md`, and a case-only rename key.
 
-- [ ] **TASK-4: Add the side filesystem adapter (`sidefs/`)**
+- [x] **TASK-4: Add the side filesystem adapter (`sidefs/`)**
   - **Associated Acceptance Criteria**: `3.3`, `6.3`
   - **Concrete Steps**:
     1. Define the `SideFs` interface as in design.md.
