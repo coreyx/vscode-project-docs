@@ -367,6 +367,39 @@ The changes agreed after the first review: a safeguard for notes that stop being
     3. Make the first plugin task the reading-view decoding prototype (design decision 14).
     4. Track the plugin spec's completion here. This task is done when the plugin's spec is implemented and its walkthrough records those criteria as passing.
 
+### Milestone 11: Linking the repo root syncs only what git keeps
+
+A change agreed before the release: files git ignores, and anything in `node_modules`, stay out of the sync, so the repo root can be linked safely. Notes kept out of git on purpose can still sync, and none stops syncing without a word.
+
+- [ ] **TASK-36: Skip files git ignores, on both sides**
+  - **Associated Acceptance Criteria**: `3.6`, `3.8`, `3.9`
+  - **Concrete Steps**:
+    1. Add the `ignore` package to the core, pinned to an exact version.
+    2. Add `settings.syncIgnored` to the committed link file's schema and validation, defaulting to none.
+    3. Add a loader for the repo's ignore rules (design decision 20): every `.gitignore` from the repo root down to the docs folder and inside it, plus `.git/info/exclude`. It returns a matcher on keys, or the file that couldn't be read. `node_modules` always matches; `syncIgnored` patterns exempt everything else.
+    4. Give the scanner the matcher, so it skips matching files and doesn't enter matching folders, on both sides, judging each key by its repo path.
+    5. Load the rules once per pass in the engine, and hand the same matcher to both scans. A rule file that can't be read stops the pass with a problem naming it, in VS Code and the CLI.
+    6. Make the native watcher and the VS Code watchers skip events under `node_modules`.
+    7. Say in the extension's and the CLI's READMEs which files sync when the linked folder is the repo root, and how `syncIgnored` brings back a folder kept out of git.
+    8. Unit tests: nested `.gitignore` files, negation, `.git/info/exclude`, `syncIgnored`, `node_modules` with no `.gitignore` and when listed in `syncIgnored`, a vault-only key at an ignored path, and folder pruning. Integration tests: a root-linked repo with `node_modules` and an ignored folder, with attachment sync off and on; an unreadable `.gitignore` stops the pass.
+
+- [ ] **TASK-37: Say when synced notes become ignored, and offer to keep them**
+  - **Associated Acceptance Criteria**: `3.7`, `3.10`
+  - **Concrete Steps**:
+    1. In the planner, mark an index entry whose key the rules now skip as `ignored`, leave both files alone, and report one `now-ignored` notice per ignored folder (or file), with the fixes `sync-ignored` and `stop-syncing` (design decision 20).
+    2. When an `ignored` entry's key syncs again, plan it from its kept base, as a synced entry.
+    3. In the Project Docs view, add **Keep syncing it**, which adds the folder or file to `syncIgnored` in `.project-docs.json`, and **Stop syncing it**, which forgets the entries.
+    4. Make the CLI report the notice and name the setting, with no way to act on it.
+    5. Read `.project-docs/ignored-choices.json` each pass and carry out each choice as the matching VS Code action does. Add its format to the core's `/status` entry point, so the plugin can write it. The plugin's buttons are TASK-17 of the plugin's own spec, built against the core release that has this.
+    6. Unit tests for the planner (a folder and a single file becoming ignored, one notice per folder, an edit on each side while ignored, then kept or stopped, and each choice from the file, twice), and an integration test for both actions in VS Code.
+
+- [ ] **TASK-38: List git-ignored folders of notes when linking**
+  - **Associated Acceptance Criteria**: `1.6`
+  - **Concrete Steps**:
+    1. During "Link to Obsidian", after the docs folder is chosen, find the git-ignored folders inside it that contain Markdown, other than `node_modules`, with the TASK-36 loader.
+    2. When there are any, ask which to keep syncing in a multi-select question, with none picked, and write the picked ones to `syncIgnored` before the first sync.
+    3. Integration tests: a docs folder with a git-ignored `scratch/` of notes, linked with `scratch/` picked and not picked, and one with no ignored folder, which asks nothing extra.
+
 ### Milestone 9: Project Docs is verified end to end and published
 
 - [ ] **TASK-31: Verify the release and publish**

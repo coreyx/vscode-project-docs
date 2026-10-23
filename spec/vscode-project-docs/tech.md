@@ -143,6 +143,17 @@ The CLI and the extension depend on the core as `workspace:*`, which `pnpm publi
 - **remark with a wikilink plugin:** the available wikilink extensions model Obsidian's syntax incompletely (aliases with anchors, embeds, block references), and re-serializing through remark would reformat files.
 - **Regex only:** gets code spans wrong.
 
+### Ignore rules
+**Choice:** the `ignore` package (MIT, no dependencies, actively maintained), given the rules from the repo's `.gitignore` files and `.git/info/exclude`, and a second matcher for the link's `syncIgnored` patterns, which use the same syntax.
+
+**Why:**
+- REQ-3.0.7 needs the same answer for a path on both sides, on every pass, in the extension and the CLI alike. A pure function of the path and the rule files gives that.
+- It needs no git on the machine, and no process per pass.
+
+**Alternatives considered:** asking git (`git check-ignore`, `git ls-files --ignored`). It has git's exact rules, including the global excludes file and its exemption for tracked files. But it needs git on the `PATH`, and if it failed on one pass the set of skipped files would change, so that pass could copy a whole ignored folder into the vault. Failing closed instead would make git a requirement for syncing at all.
+
+**Risk:** two of git's rules aren't followed, as design decision 20 records: the global excludes file (`core.excludesFile`), and the exemption for a tracked file that matches an ignore pattern. Both are rare in a docs folder.
+
 ### PRIVATE.md decoder
 **Choice:** a TypeScript port of the standard's reference implementation inside the core. It uses JavaScript Unicode regexes (`[\p{L}\p{N}]` for "letter or digit in any script"), and is verified against the standard's conformance suite in CI.
 **Why:**

@@ -69,7 +69,7 @@ flowchart LR
 |---|---|
 | `paths/` | Canonical path keys (NFC, `/` separators, relative to the linked folder); case-folded keys for clash detection; portability checks (Windows reserved names and characters, trailing dot or space); WSL path translation. |
 | `sidefs/` | The `SideFs` interface, plus a Node implementation with atomic writes (temporary file in the same folder, `fsync`, rename). Trash is injected (VS Code API, the `trash` package, or a vault `.trash` mover). |
-| `scan/` | Walks one side into a `Snapshot`. It never follows symlinks or junctions, and skips (and reports) non-UTF-8 Markdown, files over 5 MB, and anything inside `.project-docs/`. Hashing is SHA-256 over line-ending-normalized content for Markdown, and over raw bytes otherwise. A stat cache skips re-hashing files whose size and modification time are unchanged. |
+| `scan/` | Walks one side into a `Snapshot`. It never follows symlinks or junctions, and skips (and reports) non-UTF-8 Markdown, files over 5 MB, and anything inside `.project-docs/`. It also skips, silently and on both sides, what the repo's ignore rules exclude (decision 20). Hashing is SHA-256 over line-ending-normalized content for Markdown, and over raw bytes otherwise. A stat cache skips re-hashing files whose size and modification time are unchanged. |
 | `rules/` | Reads the `project-docs` property, and writes it by editing only the frontmatter block through `yaml`'s Document API. |
 | `links/` | Parses Markdown with mdast to find code and frontmatter ranges and Markdown links. Tokenizes wikilinks and embeds outside those ranges. Resolves targets against a snapshot, converts eligible wikilinks into positional edits, and lists every link target for the guards. |
 | `privatemd/` | The decoder ported from the standard's reference implementation, and a real-value finder (case-insensitive, values of 4+ characters, findings name the placeholder only). |
@@ -278,6 +278,30 @@ Neither app can save a decoded document anywhere, and decoding never changes the
 
 **Why:** REQ-15.0.6 and 15.4. Setup creates exactly that file (REQ-15.0.3). Under the earlier standard it was an error, so every pass after setup reported "PRIVATE.md can't be read". Only a table that is present and well-formed counts as empty, so a file that failed to parse still fails closed.
 
+### 20. Files git ignores are skipped on both sides, judged by their repo path
+**What:**
+- **The rules:** every `.gitignore` from the repo root down to the docs folder and inside it, plus `.git/info/exclude`, read with the `ignore` package. A nested `.gitignore` applies relative to its own folder, as in git. A file inside a folder named `node_modules` is always skipped, even in a repo with no `.gitignore` or no `.git`.
+- **Exceptions:** `settings.syncIgnored` in `.project-docs.json` lists patterns, in `.gitignore` syntax and relative to the docs folder, for paths that sync although git ignores them: notes kept out of git on purpose but wanted in Obsidian. It's committed, so everyone who links the repo gets the same exceptions. It can't bring back `node_modules`.
+- **Both sides, one answer:** each key is matched by its path in the repo (`<docs folder>/<key>`), whichever side it's on. The engine loads the rules once per pass and hands the same matcher to both scans. An ignored folder isn't entered on either side.
+- **A file that becomes ignored** drops out of both snapshots, and the planner finds its index entry has a key the rules now skip. It doesn't forget the entry: it marks it `ignored`, touches neither copy, and reports one `now-ignored` notice per ignored folder (or per file, for a file ignored on its own), with the fixes `sync-ignored` and `stop-syncing`. Keeping the base means that if the user keeps syncing it, an edit made on either side in the meantime merges as usual instead of becoming a conflict.
+  - **Keep syncing it** (`sync-ignored`) adds the folder, or the file, to `syncIgnored` in `.project-docs.json`. The next pass treats the entries as synced again.
+  - **Stop syncing it** (`stop-syncing`) forgets the entries. Nothing is deleted or moved to the trash, on either side.
+  - **In Obsidian**, the plugin's banner on the note offers the same two buttons. The plugin writes only in the vault, and the engine's state isn't the plugin's to change, so a button records the choice in `.project-docs/ignored-choices.json`: the folder or file, and `sync` or `stop`. On its next pass the engine carries the choice out exactly as the VS Code action does: it adds the pattern to `syncIgnored`, or forgets the entries. Carrying out a choice twice changes nothing. The plugin removes an entry once the notice has left `status.json`, so the file has one writer, as `confirmations.json` does (decision 17).
+  - The CLI reports the notice, and says which setting to change, with no way to act on it, like `was-private`.
+- **When linking**, the extension lists the git-ignored folders inside the chosen docs folder that contain Markdown, other than `node_modules`, in a multi-select question, with none picked. The picked ones go into `syncIgnored` before the first sync. The question is asked only when there is such a folder.
+- **A rule file that can't be read** stops the pass, with a problem naming the file. Without it, a whole ignored folder could be copied.
+- **Watchers** skip events under `node_modules`, so installs don't start passes. A change to a `.gitignore` above the docs folder is picked up by the periodic rescan.
+- **Not followed:** git's global excludes file, and its exemption for a tracked file that matches a pattern. Such a file is skipped although git tracks it.
+
+**Why:** REQ-1.0.6, 3.0.7 to 3.0.9, 1.6 and 3.6 to 3.10. Linking the repo root, which "Link to Obsidian" proposes when the repo has no `docs/` folder, would otherwise copy every Markdown file in `node_modules` into the vault, and with attachment sync on, every file. Skipping by repo path on both sides keeps the planner's invariant that a file missing from one side only was deleted there: a rule applied to one side alone would make the planner trash the other copy. `.gitignore` can't tell build output from notes someone keeps out of git on purpose, so the user says which is which through `syncIgnored`. Because a folder that becomes ignored raises a problem instead of dropping out silently, no note stops syncing without the user being told.
+
+**Alternatives considered:**
+- asking git each pass (see tech.md, "Ignore rules");
+- Project Docs' own exclude list instead of `.gitignore`, prefilled when linking the root: a build folder added to `.gitignore` later would sync until someone also added it there;
+- applying `.gitignore` only when the docs folder is the repo root: behavior that depends on the folder linked is hard to explain, and a root link would have the same problem with no way out;
+- excluding only `node_modules` and a fixed list of build folders: it misses each project's own ignored folders, and wrongly skips notes in a folder named, say, `build`;
+- refusing to link the repo root, which rules out repos whose docs live at the root.
+
 ## Data model
 
 ### Committed link file: `<repo>/.project-docs.json`
@@ -295,13 +319,14 @@ Neither app can save a decoded document anywhere, and decoding never changes the
     "syncAttachments": false,
     "keepLinksAsWritten": false,
     "allowLinksOutsideProjectFolder": false,
-    "advancedUriDeepLinks": false
+    "advancedUriDeepLinks": false,
+    "syncIgnored": []
   },
   "deepLink": "obsidian://adv-uri?uid=pd_3f2c9a1e-7b4d-4c1a-9e2f-5a6b7c8d9e0f"
 }
 ```
 
-`deepLink` is present only while `advancedUriDeepLinks` is on. The file is validated against a JSON schema shipped in the core, and `records/` rejects any absolute path in it.
+`deepLink` is present only while `advancedUriDeepLinks` is on. `syncIgnored` holds patterns relative to the docs folder (decision 20); a missing key means none. The file is validated against a JSON schema shipped in the core, and `records/` rejects any absolute path in it.
 
 ### Machine-local link file: `<repo>/.project-docs.local.json` (gitignored)
 
@@ -333,6 +358,7 @@ The body gets an "Open repo in VS Code" link (`vscode://file/<path>`, or `vscode
 | `status.json` | engine | `{ format, updatedAt, state: "idle"\|"syncing"\|"paused"\|"attention", items: [{ kind, path, reasons[], placeholder? }] }`. Never contains real values. |
 | `private-files.json` | plugin | `{ format, files: [{ path, sha256 }] }` |
 | `confirmations.json` | plugin | `{ format, files: [{ path, sha256 }] }`: notes the user agreed to un-private in Obsidian (decision 17). |
+| `ignored-choices.json` | plugin | `{ format, choices: [{ path, choice: "sync"\|"stop" }] }`: what the user chose in Obsidian for a folder or file that became ignored (decision 20). |
 
 ### Engine state: `<appdata>/project-docs/projects/<projectId>/`
 
@@ -356,7 +382,7 @@ erDiagram
     string repoEol
     string vaultEol
     string rule
-    string state "synced|conflict|heldBack|skipped"
+    string state "synced|conflict|heldBack|skipped|ignored"
     string[] reasons
   }
   CONFLICT {
@@ -531,6 +557,10 @@ Exit codes:
 | A name that's illegal on the other side | `skip` with a reason, using portability checks against the target side's `isWindowsFs`. | 16.0.2, 16.2 |
 | Non-UTF-8 Markdown, or a file over 5 MB | Skipped by the scanner, and reported. | 16.0.4, 16.4, 20.3 |
 | Symlink or junction | Not followed; reported. | 16.0.5 |
+| A file inside `node_modules`, or at a path git ignores and `syncIgnored` doesn't list | Skipped on both sides (decision 20). | 3.0.7, 3.6, 3.9 |
+| A synced file that becomes ignored | Marked `ignored`, both copies left as they are, and a `now-ignored` problem offers **Keep syncing it** or **Stop syncing it**, in VS Code and on the note's banner in Obsidian (decision 20). | 3.0.8, 3.7, 3.10 |
+| A docs folder holding git-ignored folders of notes, when linking | The link flow lists them, and adds the picked ones to `syncIgnored` (decision 20). | 1.0.6, 1.6 |
+| A `.gitignore` or `.git/info/exclude` that can't be read | The pass doesn't run; the Project Docs view names the file (decision 20). | 3.0.9, 3.8 |
 | Invalid `project-docs` value | `skip` with the value in the reason. | 8.0.2, 8.4 |
 | Un-privating a note | Plugin confirmation (`RuleMenu`), recorded in `confirmations.json` so the engine syncs it without asking again (decision 17). | 9.0.4, 9.3, 10.6 |
 | A private note's marker removed by hand, or an unmarked file moved out of `private/` | Held back as `was-private` until confirmed in VS Code or Obsidian (decision 17). | 10.0.7, 10.0.8, 10.4, 10.5 |
@@ -549,9 +579,9 @@ Exit codes:
 
 | Requirement | Design coverage |
 |---|---|
-| REQ-1 Link a project | `LinkService`; decision 10 (first sync); error table (nesting) |
+| REQ-1 Link a project | `LinkService`; decision 10 (first sync); decision 20 (ignored folders when linking); error table (nesting) |
 | REQ-2 Link record and agent discovery | Data model (link files, link note); `records/`; decisions 15, 16 and 18; `projectDocs.openInObsidian`; WSL translation in `paths/` |
-| REQ-3 Two-way sync | `scan/`, `plan/`, `exec/`; `SideFs.writeAtomic`; decision 4; never-synced names in `guards/` |
+| REQ-3 Two-way sync | `scan/`, `plan/`, `exec/`; `SideFs.writeAtomic`; decisions 4 and 20; never-synced names in `guards/` |
 | REQ-4 Detecting changes | `WatcherService`, the poller, the periodic rescan in `SyncController`; first-pass reconciliation on open |
 | REQ-5 Merging and conflicts | `merge/`; decision table; decision 13; conflict store |
 | REQ-6 Renames, moves, deletes | Decision 3; the case-rename procedure; trash adapters; decision table rows for delete vs change |

@@ -56,6 +56,7 @@ Terms used throughout:
 - **1.0.3 (Event-Driven)**: When a link is created and both sides already contain files, the system shall run a first sync in which the repo is primary. Wherever both sides hold different content for the same path, the system shall keep the repo's version in place and preserve the vault's version as a conflict for the user to resolve (REQ-5).
 - **1.0.4 (Unwanted Behavior)**: If the chosen vault folder lies inside the repo, or the docs folder lies inside the vault, then the system shall refuse to create the link and explain why, so that sync can never feed itself.
 - **1.0.5 (Event-Driven)**: When the user runs "Project Docs: Unlink", the system shall stop syncing and remove the link records from both sides, leaving every file where it is.
+- **1.0.6 (Event-Driven)**: When the chosen docs folder holds folders that git ignores and that contain Markdown, other than `node_modules`, the system shall list them during linking, as one extra question asked only then, and add the ones the user picks to the link's `syncIgnored` setting (REQ-3.0.7).
 
 #### Acceptance Criteria
 - **1.1**: Starting from a repo with a `docs/` folder and a vault Obsidian knows about, linking takes no more than four prompts, each with a usable default, and the first sync completes.
@@ -63,6 +64,7 @@ Terms used throughout:
 - **1.3**: When the same path exists on both sides with different content, the repo's version is in both places after the first sync, the vault's version is preserved, and a conflict is reported for it.
 - **1.4**: Choosing a vault folder inside the repo, or a docs folder inside the vault, is refused with an explanation, and nothing is written.
 - **1.5**: After unlinking, editing a file on either side changes nothing on the other side, and no file has been deleted or moved.
+- **1.6**: Linking a folder whose git-ignored `scratch/` holds notes lists `scratch/`. Picking it makes its notes sync in the first sync; not picking it leaves them out of the vault.
 
 ### REQ-2: The link record and agent discovery
 
@@ -112,7 +114,7 @@ Terms used throughout:
 
 **User Story**: As a developer, I want edits in either app to appear in the other, so that both homes stay current.
 
-**Component**: core, extension
+**Component**: core, extension, plugin
 
 - **3.0.1 (State-Driven)**: While a link exists and VS Code has the repo open, the system shall propagate every created, changed, renamed or deleted Markdown file whose sync rule allows it from either side to the other.
 - **3.0.2 (Ubiquitous)**: The system shall propagate a change within 2 seconds of the file being saved, where the filesystem supports change notification, and within 10 seconds where it must poll (REQ-4).
@@ -120,6 +122,9 @@ Terms used throughout:
 - **3.0.4 (Ubiquitous)**: The system shall write each file on the receiving side atomically, so that an app reading it never sees a partly written file.
 - **3.0.5 (Ubiquitous)**: The system shall preserve each side's line-ending style for a file. Content is compared without regard to line endings, and a file is written in the line endings it already has on that side. A new file is written in the line endings most of that side's existing Markdown files use, or LF when the side has none, whatever the operating system.
 - **3.0.6 (Ubiquitous)**: The system shall never sync `PRIVATE.md`, `PRIVATE.example.md` or `*.private.md` files, in either direction, whatever their location or sync rule.
+- **3.0.7 (Ubiquitous)**: The system shall not sync, in either direction, a file whose path in the repo is ignored by the repo's `.gitignore` files or `.git/info/exclude`, unless the path matches the link's `syncIgnored` patterns. It shall never sync a file inside a folder named `node_modules`, whatever `syncIgnored` says. It shall judge a vault file by the path it would have in the repo, so a file is skipped on both sides or on neither.
+- **3.0.8 (Event-Driven)**: When a file that was synced becomes ignored, the system shall stop syncing it, leave both copies where they are, and report it as a problem with two actions, offered in VS Code's Project Docs view and on the note's banner in Obsidian: keep syncing it, which adds its ignored folder (or the file itself) to `syncIgnored`, and stop syncing it.
+- **3.0.9 (Unwanted Behavior)**: If a `.gitignore` file or `.git/info/exclude` can't be read, then the system shall not run the pass, and shall report which file.
 
 #### Acceptance Criteria
 - **3.1**: Saving a change to a synced note in Obsidian updates the repo file within 2 seconds on a local disk, and saving in VS Code updates the vault file within 2 seconds.
@@ -127,6 +132,11 @@ Terms used throughout:
 - **3.3**: A reader polling a file while it is being synced never observes a truncated or partial file (verified by a stress test that compares every read with a complete version).
 - **3.4**: `PRIVATE.md`, `PRIVATE.example.md` and `notes.private.md` placed in the docs folder never appear in the vault, and the same names placed in the vault never appear in the repo.
 - **3.5**: On Windows, a new note created in Obsidian reaches a repo whose docs are LF as an LF file, and reaches a repo whose docs are mostly CRLF as a CRLF file. A new repo doc reaches the vault as an LF file on every operating system.
+- **3.6**: With the repo root linked, `node_modules/pkg/README.md`, and a note in a folder listed in `.gitignore`, never appear in the vault, and a vault note at an ignored path never appears in the repo. With attachment sync on, no file from either folder appears. The same holds for a `node_modules` folder in a repo with no `.gitignore`.
+- **3.7**: Adding a synced note's folder to `.gitignore` stops it syncing, neither copy is deleted or moved to the trash, and the Project Docs view shows one problem for the folder. **Keep syncing it** adds the folder to `syncIgnored`, and an edit made on either side in the meantime then syncs. **Stop syncing it** clears the problem, and the folder stays out of the sync.
+- **3.8**: With a `.gitignore` that can't be read, no pass runs, and the Project Docs view names the file.
+- **3.9**: With `scratch/` in both `.gitignore` and `syncIgnored`, a note in `scratch/` syncs both ways. A `node_modules` folder listed in `syncIgnored` still doesn't sync.
+- **3.10**: In Obsidian, the banner on a note that became ignored offers **Keep syncing it** and **Stop syncing it**, and each has the same result as in VS Code by the end of the next pass.
 
 ### REQ-4: Detecting changes, including while closed
 
