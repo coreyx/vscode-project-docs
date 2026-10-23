@@ -2,6 +2,7 @@
  * The planner's inputs and outputs (design.md, Interfaces). A plan is a complete, ordered
  * description of everything one sync pass will do, computed without touching either folder.
  */
+import type { IgnoreRules } from "../scan/index.js";
 import type { PrivateFilesList, INVALID_PRIVATE_FILES } from "../guards/index.js";
 import type { LinkResolver } from "../links/index.js";
 import type { PrivateMdMapping } from "../privatemd/index.js";
@@ -36,6 +37,11 @@ export interface PlanInput {
   readonly privateFiles: PrivateFilesList | typeof INVALID_PRIVATE_FILES;
   /** Notes the user agreed in Obsidian may leave privacy, by path and hash (design decision 17). */
   readonly confirmations?: readonly Confirmation[];
+  /**
+   * The repo's ignore rules, which also built the snapshots (design decision 20). An index entry
+   * whose key they now skip is set aside as `ignored` instead of being planned as a deletion.
+   */
+  readonly ignore?: IgnoreRules | undefined;
   readonly mapping: PrivateMdMapping | null;
   readonly resolver: LinkResolver;
   /** Reads a Markdown file's text from a side; null if it vanished since the scan. */
@@ -66,15 +72,18 @@ export interface Notice {
     | "not-portable"
     | "scan-skipped"
     | "was-private"
-    | "ignore-rules-unreadable";
+    | "ignore-rules-unreadable"
+    | "now-ignored";
   /** Contains no real value. */
   readonly message: string;
   readonly reasons?: readonly string[];
   /**
-   * A fix the system can apply for the user: replacing real values with their placeholders, or,
-   * once the user confirms, syncing a note that was private.
+   * A fix the system can apply for the user: replacing real values with their placeholders;
+   * once the user confirms, syncing a note that was private; or, for synced notes that became
+   * ignored, keeping them synced (`sync-ignored`, with stopping also offered) or, where they can't
+   * be kept, as in `node_modules`, only stopping (`stop-syncing`).
    */
-  readonly fix?: "replace-real-values" | "confirm-syncable";
+  readonly fix?: "replace-real-values" | "confirm-syncable" | "sync-ignored" | "stop-syncing";
 }
 
 /** One step of a pass. Every action says how the index changes once it has been carried out. */

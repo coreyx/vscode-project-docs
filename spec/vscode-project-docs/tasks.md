@@ -383,7 +383,7 @@ A change agreed before the release: files git ignores, and anything in `node_mod
     7. Say in the extension's and the CLI's READMEs which files sync when the linked folder is the repo root, and how `syncIgnored` brings back a folder kept out of git.
     8. Unit tests: nested `.gitignore` files, negation, `.git/info/exclude`, `syncIgnored`, `node_modules` with no `.gitignore` and when listed in `syncIgnored`, a vault-only key at an ignored path, and folder pruning. Integration tests: a root-linked repo with `node_modules` and an ignored folder, with attachment sync off and on; an unreadable `.gitignore` stops the pass.
 
-- [ ] **TASK-37: Say when synced notes become ignored, and offer to keep them**
+- [x] **TASK-37: Say when synced notes become ignored, and offer to keep them**
   - **Associated Acceptance Criteria**: `3.7`, `3.10`
   - **Concrete Steps**:
     1. In the planner, mark an index entry whose key the rules now skip as `ignored`, leave both files alone, and report one `now-ignored` notice per ignored folder (or file), with the fixes `sync-ignored` and `stop-syncing` (design decision 20).

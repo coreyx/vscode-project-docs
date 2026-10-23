@@ -29,13 +29,23 @@ import {
   replaceRealValues,
   type PrivateMdMapping,
 } from "../privatemd/index.js";
-import { COMMITTED_FILE, readLink, type CommittedLink, type LocalLink } from "../records/index.js";
+import {
+  COMMITTED_FILE,
+  addSyncIgnored,
+  readLink,
+  readSyncIgnored,
+  syncIgnoredPattern,
+  type CommittedLink,
+  type LocalLink,
+} from "../records/index.js";
 import { decodeUtf8, loadIgnoreRules, scan, type StatCache } from "../scan/index.js";
 import { createNodeSideFs, vaultTrash, type SideFs, type TrashFn } from "../sidefs/index.js";
 import { StateStore, projectStateDir, stateRoot } from "../state/index.js";
 import {
   confirmationsPath,
+  ignoredChoicesPath,
   parseConfirmations,
+  parseIgnoredChoices,
   privateFilesPath,
   type Confirmation,
 } from "../status/index.js";
@@ -219,11 +229,10 @@ export async function planPass(
   const { index } = await project.store.loadIndex();
   const includeAttachments = committed.settings.syncAttachments;
   // One set of rules for both scans, so an ignored file drops out of both snapshots (decision 20).
-  const loaded = await loadIgnoreRules(
-    project.repoRoot,
-    committed.docsFolder,
-    committed.settings.syncIgnored,
-  );
+  // Read afresh each pass: Keep syncing it, a choice made in Obsidian, a teammate's pull or a hand
+  // edit can change it while the project stays open.
+  const syncIgnored = (await readSyncIgnored(project.repoRoot)) ?? committed.settings.syncIgnored;
+  const loaded = await loadIgnoreRules(project.repoRoot, committed.docsFolder, syncIgnored);
   if ("unreadable" in loaded)
     return { plan: unreadableRulesPlan(committed.docsFolder, loaded.unreadable), problems };
   const ignore = loaded.rules;
@@ -259,6 +268,7 @@ export async function planPass(
     linkNoteKey: project.linkNoteKey,
     privateFiles,
     confirmations,
+    ignore,
     mapping,
     resolver: createResolver({ projectFolder: committed.vaultFolder, files: vaultFiles }),
     readText,
@@ -353,6 +363,55 @@ export async function confirmSyncable(project: Project, key: string): Promise<bo
   return true;
 }
 
+/**
+ * Keeps syncing a folder or file that became ignored (design decision 20): adds its pattern to
+ * `syncIgnored` in `.project-docs.json`, so the next pass syncs it again from its kept base.
+ * `noticePath` is the `now-ignored` notice's path. Returns false if it was already listed.
+ */
+export async function keepSyncingIgnored(project: Project, noticePath: string): Promise<boolean> {
+  return addSyncIgnored(project.repoRoot, syncIgnoredPattern(noticePath));
+}
+
+/**
+ * Stops syncing a folder or file that became ignored: forgets its `ignored` entries, so it's no
+ * longer reported. Neither copy is touched. Returns whether anything was forgotten.
+ */
+export async function stopSyncingIgnored(project: Project, noticePath: string): Promise<boolean> {
+  const { index } = await project.store.loadIndex();
+  const entries = { ...index.entries };
+  let forgot = false;
+  for (const [key, entry] of Object.entries(entries)) {
+    const covered = noticePath.endsWith("/") ? key.startsWith(noticePath) : key === noticePath;
+    if (covered && entry.state === "ignored") {
+      delete entries[key];
+      forgot = true;
+    }
+  }
+  if (forgot) await project.store.saveIndex({ ...index, entries });
+  return forgot;
+}
+
+/**
+ * Carries out what the user chose in Obsidian for notes that became ignored, recorded in
+ * `.project-docs/ignored-choices.json`, exactly as the VS Code actions do. A choice already carried
+ * out changes nothing, so the plugin can leave it in place until the notice is gone.
+ */
+async function applyIgnoredChoices(project: Project): Promise<void> {
+  const text = await readFile(ignoredChoicesPath(project.local.vaultFolderPath), "utf8").catch(
+    () => null,
+  );
+  for (const { path: noticePath, choice } of parseIgnoredChoices(text)) {
+    try {
+      if (choice === "sync") await keepSyncingIgnored(project, noticePath);
+      else await stopSyncingIgnored(project, noticePath);
+    } catch (error) {
+      await project.logger.warn(
+        `couldn't carry out the choice for ${noticePath}: ${(error as Error).message}`,
+      );
+    }
+  }
+}
+
 /** The outcome of asking for a sync pass. */
 export type SyncOutcome =
   | {
@@ -397,6 +456,8 @@ export async function syncOnce(project: Project, options: SyncOptions = {}): Pro
       store: project.store,
       logger: project.logger,
     };
+    // Before the index is loaded for replay, so the replayed index includes what a choice forgot.
+    await applyIgnoredChoices(project);
     const { index } = await project.store.loadIndex();
     const replayed = await replayJournal(ctx, index);
     const { plan: planned, problems } = await planPass(project, options.cache);

@@ -123,6 +123,7 @@ export function kindLabel(kind: string): string {
     "write-failing": "keeps failing",
     "was-private": "was private, waiting for you",
     "ignore-rules-unreadable": "can't be read, so sync is stopped",
+    "now-ignored": "ignored by git, not syncing",
   };
   return labels[kind] ?? kind;
 }

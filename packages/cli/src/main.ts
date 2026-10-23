@@ -15,6 +15,7 @@ import {
   findRepoRoot,
   openProject,
   planPass,
+  syncIgnoredPattern,
   syncOnce,
   type Action,
   type LockInfo,
@@ -91,6 +92,14 @@ function printNotices(io: Io, notices: readonly Notice[], problems: readonly str
   for (const notice of notices) {
     io.out(`! ${notice.message}`);
     for (const reason of notice.reasons ?? []) io.out(`    ${reason}`);
+    // The command line can't act on it, but can say which setting does (design decision 20).
+    if (notice.code === "now-ignored") {
+      io.out(
+        notice.fix === "sync-ignored"
+          ? `    To keep syncing it, add "${syncIgnoredPattern(notice.key)}" to settings.syncIgnored in .project-docs.json. To stop, choose Stop Syncing in VS Code or Obsidian.`
+          : "    It can't be synced again. Choose Stop Syncing in VS Code or Obsidian to clear this.",
+      );
+    }
   }
 }
 

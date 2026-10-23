@@ -137,6 +137,18 @@
         "icon": "$(repo-push)"
       },
       {
+        "command": "projectDocs.keepSyncingIgnored",
+        "title": "Keep Syncing It",
+        "category": "Project Docs",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "projectDocs.stopSyncingIgnored",
+        "title": "Stop Syncing It",
+        "category": "Project Docs",
+        "icon": "$(circle-slash)"
+      },
+      {
         "command": "projectDocs.toggleDecoded",
         "title": "Toggle Decoded View",
         "category": "Project Docs"
@@ -250,6 +262,14 @@
           "when": "false"
         },
         {
+          "command": "projectDocs.keepSyncingIgnored",
+          "when": "false"
+        },
+        {
+          "command": "projectDocs.stopSyncingIgnored",
+          "when": "false"
+        },
+        {
           "command": "projectDocs.toggleDecoded",
           "when": "projectDocs.decodable"
         },
@@ -327,6 +347,16 @@
         {
           "command": "projectDocs.confirmSyncable",
           "when": "view == projectDocs.problems && viewItem == projectDocs.problem.was-private.confirm-syncable",
+          "group": "inline"
+        },
+        {
+          "command": "projectDocs.keepSyncingIgnored",
+          "when": "view == projectDocs.problems && viewItem == projectDocs.problem.now-ignored.sync-ignored",
+          "group": "inline"
+        },
+        {
+          "command": "projectDocs.stopSyncingIgnored",
+          "when": "view == projectDocs.problems && viewItem =~ /^projectDocs\\.problem\\.now-ignored\\./",
           "group": "inline"
         }
       ]

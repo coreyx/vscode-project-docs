@@ -1,14 +1,17 @@
 /**
  * Changing sync rules with the mouse (REQ-9): the Explorer's context submenu, the current file's
  * rule in the status bar with a picker on click, the offers to trash a copy that is no longer
- * synced (design decision 9), and confirming that a note that was private may sync (decision 17).
+ * synced (design decision 9), confirming that a note that was private may sync (decision 17), and
+ * keeping or stopping the sync of notes that became ignored by git (decision 20).
  */
 import * as vscode from "vscode";
 import {
   FrontmatterError,
   confirmSyncable,
+  keepSyncingIgnored,
   readRule,
   setRule,
+  stopSyncingIgnored,
   type SyncOutcome,
   type SyncRule,
 } from "@specdevship/project-docs-core";
@@ -82,6 +85,12 @@ export class RuleControls implements vscode.Disposable {
       vscode.commands.registerCommand(
         "projectDocs.confirmSyncable",
         (target: ProblemTarget, options?: ConfirmOptions) => this.confirmSyncable(target, options),
+      ),
+      vscode.commands.registerCommand("projectDocs.keepSyncingIgnored", (target: ProblemTarget) =>
+        this.ignoredChoice(target, "sync"),
+      ),
+      vscode.commands.registerCommand("projectDocs.stopSyncingIgnored", (target: ProblemTarget) =>
+        this.ignoredChoice(target, "stop"),
       ),
       vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
       vscode.workspace.onDidChangeTextDocument((event) => {
@@ -208,6 +217,21 @@ export class RuleControls implements vscode.Disposable {
       if (choice !== "Sync to Repo") return false;
     }
     return controller.exclusive((p) => confirmSyncable(p, key));
+  }
+
+  /**
+   * Keeps syncing a folder or file that became ignored, by adding it to `syncIgnored` in
+   * `.project-docs.json`, or stops syncing it, leaving both copies alone (design decision 20).
+   * Neither asks first: keeping sends nothing that wasn't syncing before, and stopping changes no
+   * file. Returns whether anything changed; the pass that follows picks it up.
+   */
+  private async ignoredChoice(target: ProblemTarget, choice: "sync" | "stop"): Promise<boolean> {
+    const controller = this.controller();
+    if (!controller?.linkedProject) return false;
+    const key = typeof target === "string" ? target : target.problem.path;
+    return controller.exclusive((p) =>
+      choice === "sync" ? keepSyncingIgnored(p, key) : stopSyncingIgnored(p, key),
+    );
   }
 
   /** Offers, once per file, to trash a copy a pass reported as no longer synced. */

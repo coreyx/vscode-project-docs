@@ -11,6 +11,7 @@
  *    or moved to a trash by an explicit `trash` action.
  *  - Nothing private reaches the repo: every change heading there passes the guards first.
  */
+import { inNodeModules, type IgnoreRules } from "../scan/index.js";
 import { checkVaultChange, inPrivateSubfolder, type GuardReason } from "../guards/index.js";
 import { convertWikilinks } from "../links/index.js";
 import { mergeText } from "../merge/index.js";
@@ -117,6 +118,9 @@ class Planner {
     }
   >();
 
+  /** Entries that were `ignored` and no longer are, as the planner treats them: synced again. */
+  private readonly unignored = new Map<string, IndexEntry>();
+
   /** Each side's line ending for new files, worked out once per pass. */
   private readonly sideDefaults: Record<Side, LineEnding>;
 
@@ -136,7 +140,7 @@ class Planner {
   }
 
   private entry(key: string): IndexEntry | undefined {
-    return this.input.index.entries[key];
+    return this.unignored.get(key) ?? this.input.index.entries[key];
   }
 
   async run(): Promise<Plan> {
@@ -145,6 +149,7 @@ class Planner {
         this.notices.push({ key: skipped.key, code: "scan-skipped", message: skipped.message });
       }
     }
+    this.setAsideIgnored();
     await this.readChangedVaultNotes();
     this.excludeCaseClashes();
     this.detectRenames();
@@ -161,6 +166,39 @@ class Planner {
       await this.planKey(key);
     }
     return { actions: this.actions, notices: this.notices, bulk: this.bulkCheck() };
+  }
+
+  /**
+   * Sets aside index entries whose keys the ignore rules now skip (design decision 20), before
+   * anything else can take their absence from both snapshots for a deletion or a rename. A synced
+   * entry becomes `ignored`, keeping its base, and is reported once per ignored folder; other
+   * entries are left as they are, so a private note stays known to be private. An `ignored` entry
+   * the rules no longer skip is synced again, from its base.
+   */
+  private setAsideIgnored(): void {
+    const ignore = this.input.ignore;
+    if (!ignore) return;
+    const groups = new Map<string, string[]>();
+    for (const [key, entry] of Object.entries(this.input.index.entries)) {
+      if (!ignore.skips(key, false)) {
+        if (entry.state === "ignored") {
+          const synced: IndexEntry = { ...entry, state: "synced", reasons: [] };
+          this.unignored.set(key, synced);
+          this.record(key, synced);
+        }
+        continue;
+      }
+      // A conflict stays frozen and reported as one, wherever it is.
+      if (entry.state === "conflict") continue;
+      this.handled.add(key);
+      if (entry.state !== "ignored" && !hasAgreedBase(entry)) continue;
+      if (entry.state !== "ignored") {
+        this.record(key, { ...entry, state: "ignored", reasons: ["ignored by git"] });
+      }
+      const root = ignoredRoot(key, ignore);
+      groups.set(root, [...(groups.get(root) ?? []), key]);
+    }
+    for (const [root, keys] of groups) this.notices.push(nowIgnoredNotice(root, keys));
   }
 
   /** Reads vault notes that are new or changed, so rules and private markers are known up front. */
@@ -963,4 +1001,45 @@ class Planner {
     const threshold = Math.min(20, Math.ceil(linked * 0.25));
     return { destructive, threshold, guarded: destructive > threshold };
   }
+}
+
+/**
+ * The folder whose being ignored stopped `key` syncing: its shallowest ignored ancestor, with a
+ * trailing `/`, or the key itself when only the file is ignored. Reporting by folder gives one
+ * notice for a whole ignored folder, and the pattern that would bring it back.
+ */
+function ignoredRoot(key: string, ignore: IgnoreRules): string {
+  const parts = key.split("/");
+  for (let i = 1; i < parts.length; i++) {
+    const folder = parts.slice(0, i).join("/");
+    if (inNodeModules(folder) || ignore.gitIgnores(folder, true)) return `${folder}/`;
+  }
+  return key;
+}
+
+/** How many of a folder's files a `now-ignored` notice names before it just counts the rest. */
+const NAMED_IGNORED_FILES = 20;
+
+/** The notice for synced files that became ignored, under one folder or as one file. */
+function nowIgnoredNotice(root: string, keys: readonly string[]): Notice {
+  const folder = root.endsWith("/");
+  const neverSyncs = inNodeModules(root);
+  const why = neverSyncs ? "is in node_modules, which never syncs" : "is ignored by git";
+  const what = !folder
+    ? "it has stopped syncing"
+    : keys.length === 1
+      ? "its synced file has stopped syncing"
+      : `its ${keys.length} synced files have stopped syncing`;
+  const sorted = [...keys].sort();
+  const reasons = sorted.slice(0, NAMED_IGNORED_FILES);
+  if (sorted.length > NAMED_IGNORED_FILES) {
+    reasons.push(`and ${sorted.length - NAMED_IGNORED_FILES} more`);
+  }
+  return {
+    key: root,
+    code: "now-ignored",
+    message: `${root} ${why}, so ${what}. Both copies are kept as they are.`,
+    ...(folder ? { reasons } : {}),
+    fix: neverSyncs ? "stop-syncing" : "sync-ignored",
+  };
 }

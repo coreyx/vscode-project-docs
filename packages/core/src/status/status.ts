@@ -150,3 +150,50 @@ export function serializePrivateFilesList(files: readonly PrivateFileRecord[]): 
     .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   return `${JSON.stringify({ format: PRIVATE_FILES_FORMAT, files: sorted }, null, 2)}\n`;
 }
+
+/** Format version of `ignored-choices.json`. */
+export const IGNORED_CHOICES_FORMAT = 1;
+
+/** Where the plugin records what the user chose for notes that became ignored (design decision 20). */
+export function ignoredChoicesPath(vaultFolderPath: string): string {
+  return path.join(vaultFolderPath, METADATA_FOLDER, "ignored-choices.json");
+}
+
+/**
+ * What the user chose in Obsidian for a folder or file that became ignored: keep syncing it
+ * (`sync`), or stop (`stop`). `path` is the `now-ignored` notice's path, so a folder's ends in `/`.
+ */
+export interface IgnoredChoice {
+  readonly path: string;
+  readonly choice: "sync" | "stop";
+}
+
+/**
+ * Parses `ignored-choices.json`. A missing or unreadable file chooses nothing, so the notes stay
+ * ignored and reported, and nothing is synced or forgotten that the user didn't ask for.
+ */
+export function parseIgnoredChoices(text: string | null): readonly IgnoredChoice[] {
+  if (text === null) return [];
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  const file = value as { format?: unknown; choices?: unknown } | null;
+  if (file?.format !== IGNORED_CHOICES_FORMAT || !Array.isArray(file.choices)) return [];
+  return (file.choices as unknown[]).flatMap((record) => {
+    const { path: p, choice } = (record ?? {}) as Partial<IgnoredChoice>;
+    return typeof p === "string" && (choice === "sync" || choice === "stop")
+      ? [{ path: p, choice }]
+      : [];
+  });
+}
+
+/** Serializes `ignored-choices.json`, as the plugin writes it, sorted by path. */
+export function serializeIgnoredChoices(choices: readonly IgnoredChoice[]): string {
+  const sorted = [...choices]
+    .map(({ path: p, choice }) => ({ path: p, choice }))
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  return `${JSON.stringify({ format: IGNORED_CHOICES_FORMAT, choices: sorted }, null, 2)}\n`;
+}

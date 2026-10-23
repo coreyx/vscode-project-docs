@@ -186,15 +186,21 @@ export function activate(context: vscode.ExtensionContext): ProjectDocsApi {
       conflicts.open(key),
     ),
     vscode.commands.registerCommand("projectDocs.openFile", async (...files: string[]) => {
-      // Opens the first copy that exists; see resolveAction for why there can be two.
+      // Opens the first copy that exists; see resolveAction for why there can be two. A problem
+      // about a whole folder, such as one that became ignored, reveals the folder instead.
       for (const file of files) {
         const uri = vscode.Uri.file(file);
+        let type: vscode.FileType;
         try {
-          await vscode.workspace.fs.stat(uri);
+          type = (await vscode.workspace.fs.stat(uri)).type;
         } catch {
           continue;
         }
-        await vscode.window.showTextDocument(uri);
+        if (type & vscode.FileType.Directory) {
+          await vscode.commands.executeCommand("revealInExplorer", uri);
+        } else {
+          await vscode.window.showTextDocument(uri);
+        }
         return;
       }
       void vscode.window.showWarningMessage("Project Docs couldn't find that file on either side.");

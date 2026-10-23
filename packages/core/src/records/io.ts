@@ -254,3 +254,44 @@ export async function readLinkNoteRepo(linkNotePath: string): Promise<string | n
     return null;
   }
 }
+
+/**
+ * The `syncIgnored` pattern that brings back exactly one folder or file, given as a `now-ignored`
+ * notice's path (a folder's ends in `/`). The leading `/` anchors it to the docs folder, which also
+ * lets the scanner keep skipping other ignored folders whole; characters `.gitignore` treats as
+ * wildcards are escaped.
+ */
+export function syncIgnoredPattern(noticePath: string): string {
+  return `/${noticePath.replace(/[\\*?[]/g, "\\$&").replace(/ $/, "\\ ")}`;
+}
+
+/** The link's current `syncIgnored` patterns, read from the file; null if it can't be read. */
+export async function readSyncIgnored(repoRoot: string): Promise<readonly string[] | null> {
+  const raw = await readJson(path.join(repoRoot, COMMITTED_FILE));
+  const committed = raw === undefined || raw === null ? null : validateCommitted(raw);
+  return committed && !("problems" in committed) ? committed.settings.syncIgnored : null;
+}
+
+/**
+ * Adds a pattern to the committed link file's `syncIgnored`, leaving everything else in the file as
+ * it is. Returns false when it was already there. Throws if the file can't be read or is invalid,
+ * since a guess would rewrite a file everyone who clones the repo shares.
+ */
+export async function addSyncIgnored(repoRoot: string, pattern: string): Promise<boolean> {
+  const file = path.join(repoRoot, COMMITTED_FILE);
+  const raw = (await readJson(file)) as Record<string, unknown> | null | undefined;
+  const checked = raw ? validateCommitted(raw) : null;
+  if (!raw || !checked || "problems" in checked) {
+    throw new UnsafeRecordError(
+      checked && "problems" in checked ? checked.problems : [`${COMMITTED_FILE} can't be read`],
+    );
+  }
+  if (checked.settings.syncIgnored.includes(pattern)) return false;
+  const settings = (raw["settings"] ?? {}) as Record<string, unknown>;
+  const updated = {
+    ...raw,
+    settings: { ...settings, syncIgnored: [...checked.settings.syncIgnored, pattern] },
+  };
+  await writeFileAtomic(file, `${JSON.stringify(updated, null, 2)}\n`);
+  return true;
+}

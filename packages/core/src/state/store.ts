@@ -27,9 +27,12 @@ export interface IndexEntry {
    * files that never sync; for them `baseHash` is the vault content last seen, so the planner only
    * re-reads them when they change, and the guards can tell a link to them is private. `detached`
    * keys are repo copies of notes that became private: left in place, never synced, and reported
-   * until the user removes them (design decision 9).
+   * until the user removes them (design decision 9). `ignored` keys were synced until git began
+   * to ignore them: both copies are left alone, the base is kept so syncing can resume without a
+   * conflict, and they're reported until the user keeps or stops syncing them (decision 20).
    */
-  readonly state: "synced" | "conflict" | "heldBack" | "skipped" | "vaultOnly" | "detached";
+  readonly state:
+    "synced" | "conflict" | "heldBack" | "skipped" | "vaultOnly" | "detached" | "ignored";
   /** Why the key isn't synced; placeholders only, never real values. */
   readonly reasons: readonly string[];
 }
