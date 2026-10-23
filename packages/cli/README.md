@@ -48,6 +48,7 @@ Run them anywhere inside a linked repo.
 - Overlapping edits become a conflict, reported and left for you to resolve in VS Code. Nothing is overwritten.
 - A file deleted on one side goes to the trash on the other.
 - Private notes, links to them, and real values from the repo's PRIVATE.md never reach the repo. A change held back for one of these is reported and stays in the vault.
+- A note that was private and lost its marker is reported and stays in the vault until someone confirms it in VS Code or Obsidian. `sync` can't release it, `--yes` included.
 
 ## For agents
 

@@ -113,4 +113,23 @@ describe("privacy in VS Code", function () {
     await vscode.commands.executeCommand("projectDocs.showLog");
     assert.ok(!(vscode.window.activeTextEditor?.document.getText() ?? "").includes(REAL));
   });
+
+  it("holds a note whose private marker was removed by hand until it's confirmed (REQ-10.4)", async () => {
+    await writeFile(path.join(vaultFolder, "plan.md"), "---\nproject-docs: private\n---\nplan\n");
+    await vscode.commands.executeCommand("projectDocs.syncNow");
+    await writeFile(path.join(vaultFolder, "plan.md"), "plan\n");
+    await eventually(() => docsApi.problems.problems.some((p) => p.kind === "was-private"), 5_000);
+    const item = docsApi.problems.getChildren().find((i) => i.problem.path === "plan.md");
+    assert.equal(item?.contextValue, "projectDocs.problem.was-private.confirm-syncable");
+    assert.equal(await text(path.join(docs, "plan.md")), null);
+
+    assert.equal(
+      await vscode.commands.executeCommand("projectDocs.confirmSyncable", item, {
+        confirmed: true,
+      }),
+      true,
+    );
+    await eventually(async () => (await text(path.join(docs, "plan.md"))) === "plan\n", 5_000);
+    await eventually(() => docsApi.problems.problems.length === 0, 5_000);
+  });
 });

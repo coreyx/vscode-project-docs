@@ -1,11 +1,12 @@
 /**
  * Changing sync rules with the mouse (REQ-9): the Explorer's context submenu, the current file's
- * rule in the status bar with a picker on click, and the offers to trash a copy that is no longer
- * synced (design decision 9).
+ * rule in the status bar with a picker on click, the offers to trash a copy that is no longer
+ * synced (design decision 9), and confirming that a note that was private may sync (decision 17).
  */
 import * as vscode from "vscode";
 import {
   FrontmatterError,
+  confirmSyncable,
   readRule,
   setRule,
   type SyncOutcome,
@@ -40,11 +41,11 @@ export async function applyRule(uri: vscode.Uri, rule: SyncRule): Promise<void> 
   if (after !== before) await vscode.workspace.fs.writeFile(uri, Buffer.from(after, "utf8"));
 }
 
-/** A problem item from the Project Docs view, or a key, as trash commands receive them. */
-type TrashTarget = string | { readonly problem: { readonly path: string } };
+/** A problem item from the Project Docs view, or a key, as the problem actions receive them. */
+type ProblemTarget = string | { readonly problem: { readonly path: string } };
 
-/** Options for the trash commands; the notification's button already counts as confirmation. */
-interface TrashOptions {
+/** Options for commands that ask first; a caller that already asked passes `confirmed`. */
+interface ConfirmOptions {
   readonly confirmed?: boolean;
 }
 
@@ -72,11 +73,15 @@ export class RuleControls implements vscode.Disposable {
       ),
       vscode.commands.registerCommand(
         "projectDocs.trashRepoCopy",
-        (target: TrashTarget, options?: TrashOptions) => this.trash("repo", target, options),
+        (target: ProblemTarget, options?: ConfirmOptions) => this.trash("repo", target, options),
       ),
       vscode.commands.registerCommand(
         "projectDocs.trashVaultCopy",
-        (target: TrashTarget, options?: TrashOptions) => this.trash("vault", target, options),
+        (target: ProblemTarget, options?: ConfirmOptions) => this.trash("vault", target, options),
+      ),
+      vscode.commands.registerCommand(
+        "projectDocs.confirmSyncable",
+        (target: ProblemTarget, options?: ConfirmOptions) => this.confirmSyncable(target, options),
       ),
       vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
       vscode.workspace.onDidChangeTextDocument((event) => {
@@ -163,7 +168,7 @@ export class RuleControls implements vscode.Disposable {
    * Moves the copy that is no longer synced to its side's trash: the repo copy of a note made
    * private (decision 9), or the vault copy of a repo-only file. Asks first unless already asked.
    */
-  private async trash(side: "repo" | "vault", target: TrashTarget, options?: TrashOptions) {
+  private async trash(side: "repo" | "vault", target: ProblemTarget, options?: ConfirmOptions) {
     const controller = this.controller();
     if (!controller) return;
     const key = typeof target === "string" ? target : target.problem.path;
@@ -177,6 +182,32 @@ export class RuleControls implements vscode.Disposable {
       if (choice !== "Move to Trash") return;
     }
     await controller.exclusive((project) => project[side].trash(key));
+  }
+
+  /**
+   * Lets a note that stopped being private sync to the repo, after asking (REQ-10.0.7). Returns
+   * whether it was released; the pass that follows copies it, with the other guards still applying.
+   */
+  private async confirmSyncable(target: ProblemTarget, options?: ConfirmOptions): Promise<boolean> {
+    const controller = this.controller();
+    const project = controller?.linkedProject;
+    if (!controller || !project) return false;
+    const key = typeof target === "string" ? target : target.problem.path;
+    if (!options?.confirmed) {
+      const repoPath = vscode.workspace.asRelativePath(
+        vscode.Uri.joinPath(vscode.Uri.file(project.repo.root), ...key.split("/")),
+      );
+      const choice = await vscode.window.showWarningMessage(
+        `Sync ${key} to the repo?`,
+        {
+          modal: true,
+          detail: `${key} was private in the vault. Syncing it copies it into the repo as ${repoPath}, where it can be committed and pushed.`,
+        },
+        "Sync to Repo",
+      );
+      if (choice !== "Sync to Repo") return false;
+    }
+    return controller.exclusive((p) => confirmSyncable(p, key));
   }
 
   /** Offers, once per file, to trash a copy a pass reported as no longer synced. */

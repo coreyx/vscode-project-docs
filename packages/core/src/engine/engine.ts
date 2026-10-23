@@ -22,7 +22,7 @@ import {
 } from "../lock/index.js";
 import { createFileLogger, type Logger } from "../log/index.js";
 import { detectWsl, isWindowsFs, probeCaseInsensitive, toKey } from "../paths/index.js";
-import { plan, type Plan } from "../plan/index.js";
+import { isWaitingForConfirmation, plan, type Plan } from "../plan/index.js";
 import {
   PrivateMdError,
   loadPlaceholders,
@@ -33,7 +33,12 @@ import { COMMITTED_FILE, readLink, type CommittedLink, type LocalLink } from "..
 import { decodeUtf8, scan, type StatCache } from "../scan/index.js";
 import { createNodeSideFs, vaultTrash, type SideFs, type TrashFn } from "../sidefs/index.js";
 import { StateStore, projectStateDir, stateRoot } from "../state/index.js";
-import { privateFilesPath } from "../status/index.js";
+import {
+  confirmationsPath,
+  parseConfirmations,
+  privateFilesPath,
+  type Confirmation,
+} from "../status/index.js";
 
 /** A linked project, ready to sync. */
 export interface Project {
@@ -166,13 +171,18 @@ async function loadPrivateFiles(
   vaultFolderPath: string,
 ): Promise<PrivateFilesList | typeof INVALID_PRIVATE_FILES> {
   try {
-    return parsePrivateFilesList(
-      await readFile(privateFilesPath(vaultFolderPath), "utf8"),
-    );
+    return parsePrivateFilesList(await readFile(privateFilesPath(vaultFolderPath), "utf8"));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return parsePrivateFilesList(null);
     return INVALID_PRIVATE_FILES;
   }
+}
+
+/** Reads the notes the user agreed in Obsidian may leave privacy; none if the file is unreadable. */
+async function loadConfirmations(vaultFolderPath: string): Promise<readonly Confirmation[]> {
+  return parseConfirmations(
+    await readFile(confirmationsPath(vaultFolderPath), "utf8").catch(() => null),
+  );
 }
 
 /** Every file in the vault, vault-relative, for resolving links (names only; nothing is read). */
@@ -208,7 +218,7 @@ export async function planPass(
   if (problem) problems.push(problem);
   const { index } = await project.store.loadIndex();
   const includeAttachments = committed.settings.syncAttachments;
-  const [repo, vault, privateFiles, vaultFiles] = await Promise.all([
+  const [repo, vault, privateFiles, vaultFiles, confirmations] = await Promise.all([
     scan(project.repo, { includeAttachments, cache: cache?.repo }),
     scan(project.vault, {
       includeAttachments,
@@ -217,6 +227,7 @@ export async function planPass(
     }),
     loadPrivateFiles(local.vaultFolderPath),
     listVault(local.vaultRoot),
+    loadConfirmations(local.vaultFolderPath),
   ]);
   const readText = async (side: "repo" | "vault", key: string) => {
     const fs = side === "repo" ? project.repo : project.vault;
@@ -237,6 +248,7 @@ export async function planPass(
     },
     linkNoteKey: project.linkNoteKey,
     privateFiles,
+    confirmations,
     mapping,
     resolver: createResolver({ projectFolder: committed.vaultFolder, files: vaultFiles }),
     readText,
@@ -291,6 +303,21 @@ export async function replaceRealValuesInVault(project: Project, key: string): P
   const replaced = replaceRealValues(text, mapping);
   if (replaced === text) return false;
   await project.vault.writeAtomic(key, new TextEncoder().encode(replaced));
+  return true;
+}
+
+/**
+ * Releases a note held back because it stopped being private (REQ-10.0.7), once the user has
+ * confirmed in VS Code. Its vault-only entry is removed, so the next pass treats it as a new vault
+ * file, with the guards still applying. Run it under the engine lock, with no pass in progress.
+ * Returns false when the note isn't waiting for confirmation.
+ */
+export async function confirmSyncable(project: Project, key: string): Promise<boolean> {
+  const { index } = await project.store.loadIndex();
+  if (!isWaitingForConfirmation(index.entries[key])) return false;
+  const entries = { ...index.entries };
+  delete entries[key];
+  await project.store.saveIndex({ ...index, entries });
   return true;
 }
 

@@ -67,6 +67,7 @@ function sideToOpen(kind: string): "repo" | "vault" {
     case "repo-to-vault-edit":
     case "unconvertible-links":
     case "no-longer-synced":
+    case "was-private":
       return "vault";
     default:
       return "repo";
@@ -120,6 +121,7 @@ export function kindLabel(kind: string): string {
     "not-portable": "name not allowed",
     "scan-skipped": "skipped",
     "write-failing": "keeps failing",
+    "was-private": "was private, waiting for you",
   };
   return labels[kind] ?? kind;
 }

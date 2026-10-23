@@ -64,6 +64,8 @@ Project Docs is built so that a public repo never reveals your vault:
 
 A held-back change stays in the vault and syncs as soon as its cause is removed. Docs already in the repo that contain a real value or link to a private note get an entry in the **Problems** panel, so you see them before you commit.
 
+A note that stops being private without your say-so waits for you: its marker removed in a text editor or by an agent, or an unmarked file moved out of the private folder with a file manager. The Project Docs view lists it, and **Sync to Repo…** asks before copying it into the repo. Making a note syncable from the Obsidian plugin's menu asks there instead, once. The command line reports such a note but can't release it.
+
 Turning a synced note private in Obsidian stops syncing it but leaves the repo's copy where it is. Project Docs offers to move that copy to the trash; it never deletes it on its own.
 
 ## PRIVATE.md

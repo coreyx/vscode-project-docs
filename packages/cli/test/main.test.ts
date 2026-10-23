@@ -164,6 +164,19 @@ describe("status", () => {
     await run(["status", "--json"]);
     expect(JSON.parse(out.join("\n")).notices[0]).toMatchObject({ code: "invalid-rule" });
   });
+
+  it("reports a note that stopped being private, and has no way to confirm it (REQ-10.0.8)", async () => {
+    await writeFile(path.join(vaultFolder, "plan.md"), "---\nproject-docs: private\n---\nplan\n");
+    expect(await run(["sync"])).toBe(EXIT.ok);
+    await writeFile(path.join(vaultFolder, "plan.md"), "plan\n");
+    out.length = 0;
+    expect(await run(["sync", "--yes"])).toBe(EXIT.ok);
+    expect(out).toContain(
+      "! plan.md was private, so it isn't synced to the repo until you confirm in VS Code or Obsidian",
+    );
+    await expect(readFile(path.join(repo, "docs", "plan.md"), "utf8")).rejects.toThrow();
+    expect(await run(["sync", "--confirm", "plan.md"])).toBe(EXIT.error);
+  });
 });
 
 describe("describeHolder", () => {

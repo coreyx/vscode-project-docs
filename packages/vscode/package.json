@@ -131,6 +131,12 @@
         "icon": "$(replace-all)"
       },
       {
+        "command": "projectDocs.confirmSyncable",
+        "title": "Sync to Repo…",
+        "category": "Project Docs",
+        "icon": "$(repo-push)"
+      },
+      {
         "command": "projectDocs.toggleDecoded",
         "title": "Toggle Decoded View",
         "category": "Project Docs"
@@ -240,6 +246,10 @@
           "when": "false"
         },
         {
+          "command": "projectDocs.confirmSyncable",
+          "when": "false"
+        },
+        {
           "command": "projectDocs.toggleDecoded",
           "when": "projectDocs.decodable"
         },
@@ -312,6 +322,11 @@
         {
           "command": "projectDocs.replaceRealValues",
           "when": "view == projectDocs.problems && viewItem == projectDocs.problem.held-back.replace-real-values",
+          "group": "inline"
+        },
+        {
+          "command": "projectDocs.confirmSyncable",
+          "when": "view == projectDocs.problems && viewItem == projectDocs.problem.was-private.confirm-syncable",
           "group": "inline"
         }
       ]

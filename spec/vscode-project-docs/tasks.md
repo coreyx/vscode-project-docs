@@ -318,7 +318,7 @@ The Obsidian plugin is implemented in `obsidian-project-docs` under its own spec
 
 The changes agreed after the first review: a safeguard for notes that stop being private, line endings that follow each side, deep links turned on only with confirmation, and the empty placeholder table.
 
-- [ ] **TASK-32: Hold back notes that stop being private**
+- [x] **TASK-32: Hold back notes that stop being private**
   - **Associated Acceptance Criteria**: `10.4`, `10.5`
   - **Concrete Steps**:
     1. In the planner, hold a `vaultOnly` key that now passes the guards: keep it `vaultOnly`, add the "waiting for confirmation" reason, and report a `was-private` notice with the fix `confirm-syncable` (design decision 17).

@@ -43,6 +43,15 @@ export function hasAgreedBase(entry: IndexEntry | undefined): entry is IndexEntr
   return entry !== undefined && AGREED.has(entry.state) && entry.baseHash !== "";
 }
 
+/** The reason recorded on a note that stopped being private and waits for the user (decision 17). */
+export const WAITING_FOR_CONFIRMATION =
+  "was private; waits for confirmation in VS Code or Obsidian before it syncs to the repo";
+
+/** True for a vault-only entry held because it stopped being private without confirmation. */
+export function isWaitingForConfirmation(entry: IndexEntry | undefined): boolean {
+  return entry?.state === "vaultOnly" && entry.reasons.includes(WAITING_FOR_CONFIRMATION);
+}
+
 const other = (side: Side): Side => (side === "repo" ? "vault" : "repo");
 
 /** The line ending to write to a side: what the file there uses, what was recorded, or the side's default. */
@@ -72,6 +81,8 @@ class Planner {
   private readonly vaultTexts = new Map<string, string>();
   /** Vault notes found to carry the `private` marker this pass. */
   private readonly markedPrivate = new Set<string>();
+  /** New vault keys that are private files moved from elsewhere, with the entry they moved from. */
+  private readonly movedPrivate = new Map<string, IndexEntry>();
   /** Keys handled as part of a rename, or excluded, and so not planned again on their own. */
   private readonly handled = new Set<string>();
   /** Snapshot entries moved by a rename, as seen from the renamed-to key. */
@@ -109,6 +120,7 @@ class Planner {
     await this.readChangedVaultNotes();
     this.excludeCaseClashes();
     this.detectRenames();
+    this.followPrivateMoves();
 
     const keys = new Set<string>([
       ...Object.keys(this.input.index.entries),
@@ -246,6 +258,30 @@ class Planner {
               },
         );
       }
+    }
+  }
+
+  /**
+   * Finds private vault files that moved this pass (decision 17): a vault-only key that disappeared,
+   * and a new vault key with exactly its content. The new key is then still treated as private
+   * until the user confirms, even where nothing about its new path or content says so, as when an
+   * unmarked file is moved out of the private folder with a file manager.
+   */
+  private followPrivateMoves(): void {
+    const files = this.snapshot("vault");
+    const gone = new Map<string, IndexEntry[]>();
+    for (const entry of Object.values(this.input.index.entries)) {
+      if (entry.state !== "vaultOnly" || entry.baseHash === "") continue;
+      if (files.has(entry.key) || this.handled.has(entry.key)) continue;
+      gone.set(entry.baseHash, [...(gone.get(entry.baseHash) ?? []), entry]);
+    }
+    if (gone.size === 0) return;
+    for (const [to, file] of [...files].sort(([a], [b]) => (a < b ? -1 : 1))) {
+      // An empty file says nothing about where it came from, and a new empty note is common.
+      if (file.size === 0) continue;
+      if (this.entry(to) || this.handled.has(to) || this.moved.has(to)) continue;
+      const from = gone.get(file.hash)?.shift();
+      if (from) this.movedPrivate.set(to, from);
     }
   }
 
@@ -519,6 +555,44 @@ class Planner {
     }
   }
 
+  /** Whether the user confirmed, in Obsidian, that this exact content may leave privacy. */
+  private confirmed(key: string, hash: string): boolean {
+    return (this.input.confirmations ?? []).some((c) => c.path === key && c.sha256 === hash);
+  }
+
+  /**
+   * Keeps a file that stopped being private out of the repo until the user confirms (REQ-10.0.7).
+   * It stays vault-only with its earlier reasons, so links to it are still treated as private.
+   */
+  private waitForConfirmation(
+    key: string,
+    vault: SnapshotEntry,
+    wasPrivate: IndexEntry,
+    base: IndexEntry | undefined,
+  ): void {
+    const unchanged = isWaitingForConfirmation(base) && base?.baseHash === vault.hash;
+    if (!unchanged) {
+      this.record(key, {
+        key,
+        kind: vault.kind,
+        baseHash: vault.hash,
+        repoLineEnding: "none",
+        vaultLineEnding: vault.lineEnding,
+        state: "vaultOnly",
+        reasons: [
+          ...wasPrivate.reasons.filter((r) => r !== WAITING_FOR_CONFIRMATION),
+          WAITING_FOR_CONFIRMATION,
+        ],
+      });
+    }
+    this.notices.push({
+      key,
+      code: "was-private",
+      message: `${key} was private, so it isn't synced to the repo until you confirm in VS Code or Obsidian`,
+      fix: "confirm-syncable",
+    });
+  }
+
   private files(key: string): {
     repo?: SnapshotEntry | undefined;
     vault?: SnapshotEntry | undefined;
@@ -538,7 +612,16 @@ class Planner {
       return;
     }
     if (base?.state === "detached") {
-      if (!repo) this.record(key, null);
+      if (!repo && vault) {
+        // The repo copy is gone, so the note is now simply private. It's remembered as such, with
+        // no base, so the next pass re-reads it and holds it if it has stopped being private.
+        this.record(key, {
+          ...base,
+          baseHash: "",
+          state: "vaultOnly",
+          reasons: [`${key} was private`],
+        });
+      } else if (!repo) this.record(key, null);
       else
         this.notices.push({
           key,
@@ -547,7 +630,12 @@ class Planner {
         });
       return;
     }
-    if (base?.state === "vaultOnly" && vault && vault.hash === base.baseHash) {
+    if (
+      base?.state === "vaultOnly" &&
+      vault &&
+      vault.hash === base.baseHash &&
+      !isWaitingForConfirmation(base)
+    ) {
       // An unchanged private vault file: nothing to read or do.
       if (repo)
         this.notices.push({
@@ -611,6 +699,11 @@ class Planner {
     const { verdict, converted } = this.guardVault(key, v, text);
     if (verdict.action === "vaultOnly") {
       this.vaultOnly(key, v, verdict.reasons, repo);
+      return;
+    }
+    const wasPrivate = base?.state === "vaultOnly" ? base : this.movedPrivate.get(key);
+    if (wasPrivate && !this.confirmed(key, v.hash)) {
+      this.waitForConfirmation(key, v, wasPrivate, base);
       return;
     }
     if (verdict.action === "holdBack") {

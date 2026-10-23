@@ -66,6 +66,7 @@ The package root exports everything, including the engine. The Obsidian plugin n
 
 - `statusFilePath(vaultFolderPath)` and `parseStatusFile(text)` read the engine's `status.json`: one item per problem, each with a `kind`, `path`, `message`, `reasons` and an optional `fix`. It never contains real values. `parseStatusFile` returns `null` for a missing or unreadable file, or one in a newer format.
 - `privateFilesPath(vaultFolderPath)` and `serializePrivateFilesList(files)` write the private-files list, which the plugin owns. The engine only reads it.
+- `confirmationsPath(vaultFolderPath)` and `serializeConfirmations(files)` write `confirmations.json`: the notes the user agreed in Obsidian may stop being private, each as `{ path, sha256 }`. The hash is `markdownHash(text)` of the note's content at that moment, also exported here. The engine syncs a held note only while its path and hash match an entry, so a confirmation never covers a later edit. Remove an entry once its note has synced or been deleted.
 
 ## License
 

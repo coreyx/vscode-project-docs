@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import * as path from "node:path";
 import { parsePrivateFilesList } from "../../src/guards/index.js";
 import {
+  confirmationsPath,
+  parseConfirmations,
   parseStatusFile,
   privateFilesPath,
+  serializeConfirmations,
   serializePrivateFilesList,
   serializeStatusFile,
   statusFilePath,
@@ -103,5 +106,42 @@ describe("private-files.json", () => {
     expect(JSON.parse(serializePrivateFilesList([extra])).files).toEqual([
       { path: "x.png", sha256: "cc" },
     ]);
+  });
+});
+
+describe("confirmations.json", () => {
+  it("round-trips what the plugin writes, sorted by path", () => {
+    const text = serializeConfirmations([
+      { path: "b.md", sha256: "bb" },
+      { path: "a.md", sha256: "aa" },
+    ]);
+    expect(parseConfirmations(text)).toEqual([
+      { path: "a.md", sha256: "aa" },
+      { path: "b.md", sha256: "bb" },
+    ]);
+  });
+
+  it.each([
+    ["a missing file", null],
+    ["unparseable JSON", "{"],
+    ["another format", JSON.stringify({ format: 2, files: [{ path: "a.md", sha256: "aa" }] })],
+    ["files that aren't a list", JSON.stringify({ format: 1, files: {} })],
+  ])("confirms nothing for %s", (_name, text) => {
+    expect(parseConfirmations(text)).toEqual([]);
+  });
+
+  it("skips malformed records and keeps the rest", () => {
+    const text = JSON.stringify({
+      format: 1,
+      files: [{ path: "a.md", sha256: "aa" }, { path: "b.md" }, null, { sha256: "cc" }],
+    });
+    expect(parseConfirmations(text)).toEqual([{ path: "a.md", sha256: "aa" }]);
+  });
+
+  it("lives beside the other shared files", () => {
+    const folder = path.join("vault", "p");
+    expect(confirmationsPath(folder)).toBe(
+      path.join(folder, ".project-docs", "confirmations.json"),
+    );
   });
 });

@@ -8,6 +8,7 @@ import type { PrivateMdMapping } from "../privatemd/index.js";
 import type { LineEnding, Snapshot } from "../scan/index.js";
 import type { Side } from "../sidefs/index.js";
 import type { Index, IndexEntry } from "../state/index.js";
+import type { Confirmation } from "../status/index.js";
 
 /** Per-link settings that change what the planner does (the committed link file's `settings`). */
 export interface LinkSettings {
@@ -33,6 +34,8 @@ export interface PlanInput {
   readonly vaultTraits: SideTraits;
   readonly linkNoteKey?: string | undefined;
   readonly privateFiles: PrivateFilesList | typeof INVALID_PRIVATE_FILES;
+  /** Notes the user agreed in Obsidian may leave privacy, by path and hash (design decision 17). */
+  readonly confirmations?: readonly Confirmation[];
   readonly mapping: PrivateMdMapping | null;
   readonly resolver: LinkResolver;
   /** Reads a Markdown file's text from a side; null if it vanished since the scan. */
@@ -61,12 +64,16 @@ export interface Notice {
     | "invalid-rule"
     | "case-clash"
     | "not-portable"
-    | "scan-skipped";
+    | "scan-skipped"
+    | "was-private";
   /** Contains no real value. */
   readonly message: string;
   readonly reasons?: readonly string[];
-  /** A fix the system can apply for the user: replacing real values with their placeholders. */
-  readonly fix?: "replace-real-values";
+  /**
+   * A fix the system can apply for the user: replacing real values with their placeholders, or,
+   * once the user confirms, syncing a note that was private.
+   */
+  readonly fix?: "replace-real-values" | "confirm-syncable";
 }
 
 /** One step of a pass. Every action says how the index changes once it has been carried out. */

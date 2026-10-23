@@ -26,6 +26,52 @@ export function privateFilesPath(vaultFolderPath: string): string {
   return path.join(vaultFolderPath, METADATA_FOLDER, "private-files.json");
 }
 
+/** Where the plugin records notes the user agreed to un-private (design decision 17). */
+export function confirmationsPath(vaultFolderPath: string): string {
+  return path.join(vaultFolderPath, METADATA_FOLDER, "confirmations.json");
+}
+
+/** Format version of `confirmations.json`. */
+export const CONFIRMATIONS_FORMAT = 1;
+
+/**
+ * A note the user agreed, in Obsidian, may leave privacy. `sha256` is the note's content hash as
+ * the engine computes it (`markdownHash`, over LF-normalized text), so the confirmation covers
+ * exactly the content the user saw: a later edit no longer matches, and the note is held again.
+ */
+export interface Confirmation {
+  readonly path: string;
+  readonly sha256: string;
+}
+
+/**
+ * Parses `confirmations.json`. A missing or unreadable file confirms nothing, so the engine keeps
+ * every note that was private held back: failing here can only ask the user again, never publish.
+ */
+export function parseConfirmations(text: string | null): readonly Confirmation[] {
+  if (text === null) return [];
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return [];
+  }
+  const file = value as { format?: unknown; files?: unknown } | null;
+  if (file?.format !== CONFIRMATIONS_FORMAT || !Array.isArray(file.files)) return [];
+  return (file.files as unknown[]).flatMap((record) => {
+    const { path: p, sha256 } = (record ?? {}) as Partial<Confirmation>;
+    return typeof p === "string" && typeof sha256 === "string" ? [{ path: p, sha256 }] : [];
+  });
+}
+
+/** Serializes `confirmations.json`, as the plugin writes it, sorted by path. */
+export function serializeConfirmations(files: readonly Confirmation[]): string {
+  const sorted = [...files]
+    .map(({ path: p, sha256 }) => ({ path: p, sha256 }))
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  return `${JSON.stringify({ format: CONFIRMATIONS_FORMAT, files: sorted }, null, 2)}\n`;
+}
+
 /**
  * One problem the engine reports for a file: a notice from the last pass, or a write that keeps
  * failing. Contains no real values.
