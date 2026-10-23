@@ -10,7 +10,7 @@ The whole product is written in TypeScript:
 - **Shared core:** sync engine, merge, rules, link formats and the PRIVATE.md decoder. Plain Node (22+) with no VS Code or Obsidian dependency.
 - **Command-line tool:** a thin wrapper over the core.
 - **VS Code extension:** hosts the engine and supplies file watching, trash and UI through VS Code's API.
-- **Obsidian plugin:** in its own repo, consumes the core from npm.
+- **Obsidian plugin:** in its own repo, consumes the core from the npm registry.
 - **Build and test:** everything is bundled with esbuild and tested with Vitest (plus fast-check for randomized sync scenarios and `@vscode/test-cli` for the extension). CI runs on Windows, macOS, Linux and WSL.
 - **Storage:** the engine's state is plain files in a per-user application-data folder. There are no databases and no native modules.
 
@@ -26,27 +26,30 @@ The whole product is written in TypeScript:
 - **Rust or Go for the engine, compiled to WebAssembly or a sidecar binary:** faster, but adds a second toolchain and per-platform binaries in the VS Code package, for performance targets (REQ-20) that Node meets easily.
 
 ### Repository layout and package manager
-**Choice:** npm workspaces in `vscode-project-docs`, with three packages:
+**Choice:** pnpm workspaces in `vscode-project-docs`, with three packages:
 - `packages/core`;
 - `packages/cli`;
 - `packages/vscode` (the extension).
 
-The plugin lives in `obsidian-project-docs` and installs `@specdevship/project-docs-core` from npm.
+The CLI and the extension depend on the core as `workspace:*`, which `pnpm publish` replaces with the core's version. `packageManager` in the root `package.json` pins the pnpm version, through Corepack. The plugin lives in `obsidian-project-docs`, also uses pnpm, and installs `@specdevship/project-docs-core` from the npm registry.
 
 **Why:**
 - The core and the CLI version together with the engine they share.
-- npm is what `vsce` (the extension packager) and Obsidian's sample plugin assume, so there are no workarounds.
+- pnpm installs faster, and its strict linking keeps a package from using a dependency it doesn't declare.
+- The extension bundles every dependency into `dist/`, and is packaged with `vsce package --no-dependencies`, so pnpm's linking never reaches `vsce`.
 - The Obsidian store needs the plugin in its own repo (product constraint).
 
+**Changed from npm workspaces on 2026-10-23,** at the maintainer's request. npm was first chosen because `vsce` needs extra flags with pnpm's linking. That stopped mattering once the extension was packaged from its bundle alone.
+
 **Alternatives considered:**
-- **pnpm:** faster installs, but `vsce` needs extra flags with pnpm's linking. That isn't worth it for three packages.
+- **npm workspaces:** what the repo used until 2026-10-23. It works, but installs are slower and an undeclared dependency can go unnoticed.
 - **A single package with no workspaces:** would force the plugin to depend on extension code.
 
 ### Package names on npm
 **Choice:** `@specdevship/project-docs-core` and `@specdevship/project-docs-cli`, under a `specdevship` npm organization. Project Docs is part of the SpecDevShip project. The CLI's command is still `project-docs`.
 
 **Why:**
-- The plugin must install the core from npm (REQ-14.0.1 needs the same decoder on both sides), and the CLI needs an install name (REQ-18).
+- The plugin must install the core from the npm registry (REQ-14.0.1 needs the same decoder on both sides), and the CLI needs an install name (REQ-18).
 - The SpecDevShip scope groups Project Docs with the rest of that project, and leaves room for other SpecDevShip packages beside it.
 
 **Alternatives considered:**
@@ -206,7 +209,7 @@ The plugin lives in `obsidian-project-docs` and installs `@specdevship/project-d
 - **Mocha alone:** still used under `@vscode/test-cli` for the extension host, but Vitest is faster for the core.
 
 ### Command-line tool
-**Choice:** a Node CLI in the `cli` package, built on Node's `util.parseArgs` with no framework. It's installed with npm or run with `npx`, and its command name is `project-docs`.
+**Choice:** a Node CLI in the `cli` package, built on Node's `util.parseArgs` with no framework. It's installed from the npm registry with any package manager, or run with `npx` or `pnpm dlx`, and its command name is `project-docs`.
 **Why:**
 - REQ-18 needs `status`, `sync` and `where`.
 - Agents' environments almost always have Node.
