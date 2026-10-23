@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { wslToWindows, type WslContext } from "../paths/index.js";
-import { readProperty, removeProperties, setProperties } from "../rules/index.js";
+import { readProperty, setProperties } from "../rules/index.js";
 import { writeFileAtomic } from "../sidefs/index.js";
 import {
   COMMITTED_DESCRIPTION,
@@ -198,8 +198,10 @@ export function obsidianOpenUri(notePath: string, wsl: WslContext | null): strin
 }
 
 /**
- * Turns Advanced URI deep links on or off for a linked repo (REQ-2.0.8): the committed record
- * gains or loses its deep link, and the link note its `uid`. Returns the new committed record.
+ * Turns Advanced URI deep links on or off for a linked repo (REQ-2.0.8): the committed record gains
+ * or loses its deep link. Turning them on also adds the link note's `uid`; turning them off leaves
+ * it, since it's harmless (design decision 18). Callers ask the user first (REQ-2.0.12). Returns the
+ * new committed record.
  */
 export async function setDeepLinks(
   repoRoot: string,
@@ -214,18 +216,33 @@ export async function setDeepLinks(
     settings: { ...committed.settings, advancedUriDeepLinks: on },
   });
   await writeLink(repoRoot, updated, local);
+  if (on) await setLinkNoteUid(local.linkNotePath, committed.projectId);
+  return updated;
+}
+
+/** The `uid` in a link note, which Advanced URI deep links look up; null when there's none. */
+export async function readLinkNoteUid(linkNotePath: string): Promise<string | null> {
+  try {
+    const value = readProperty(await readFile(linkNotePath, "utf8"), "uid");
+    return value.kind === "scalar" && typeof value.value === "string" ? value.value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Adds `uid: <project id>` to a link note, changing nothing else. Does nothing when there's no link
+ * note; it's written again on the next link.
+ */
+export async function setLinkNoteUid(linkNotePath: string, projectId: string): Promise<void> {
   let note: string;
   try {
-    note = await readFile(local.linkNotePath, "utf8");
+    note = await readFile(linkNotePath, "utf8");
   } catch {
-    // No link note to update; it's written again on the next link.
-    return updated;
+    return;
   }
-  const next = on
-    ? setProperties(note, { uid: committed.projectId })
-    : removeProperties(note, ["uid"]);
-  if (next !== note) await writeFileAtomic(local.linkNotePath, next);
-  return updated;
+  const next = setProperties(note, { uid: projectId });
+  if (next !== note) await writeFileAtomic(linkNotePath, next);
 }
 
 /** Reads the repo path recorded in a link note, as the plugin does (REQ-14.0.6). */

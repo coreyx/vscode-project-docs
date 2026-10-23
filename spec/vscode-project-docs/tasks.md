@@ -334,7 +334,7 @@ The changes agreed after the first review: a safeguard for notes that stop being
     1. Change the planner's default for a new file to the majority line ending of the target side's Markdown files in the snapshot, LF when there are none or on a tie (design decision 4).
     2. Unit tests: an LF repo and a CRLF repo on a Windows filesystem, an empty side, a tie, and the vault on every filesystem. Existing files keep their own line endings.
 
-- [ ] **TASK-34: Ask before turning deep links on**
+- [x] **TASK-34: Ask before turning deep links on**
   - **Associated Acceptance Criteria**: `2.6`, `2.7`, `2.11`, `2.12`
   - **Concrete Steps**:
     1. Replace the automatic write in `ObsidianLinks.reconcile()` with the modal dialog of design decision 18, listing both changes, and writing both or neither.

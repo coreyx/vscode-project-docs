@@ -151,7 +151,9 @@ export async function createLink(
       isWindowsFs(request.vaultRoot, process.platform, wsl),
     ),
     openRepoUri: vscodeOpenUri(request.repoRoot, wsl),
-    deepLinks: settings.advancedUriDeepLinks,
+    // Even with the setting already on (a re-link on another clone), the uid is added only once
+    // the user agrees, which the deep-link reconcile after linking asks (design decision 18).
+    deepLinks: false,
   });
   return { committed, local };
 }

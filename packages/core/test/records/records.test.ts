@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import * as path from "node:path";
 import {
@@ -19,8 +19,10 @@ import {
   obsidianOpenUri,
   readLink,
   readLinkNoteRepo,
+  readLinkNoteUid,
   repoPathForVault,
   setDeepLinks,
+  setLinkNoteUid,
   validateCommitted,
   vscodeOpenUri,
   writeLink,
@@ -299,7 +301,7 @@ describe("opening the vault (REQ-2.0.8, 2.0.9)", () => {
     );
   });
 
-  it("turns deep links on and off in the committed record and the link note (REQ-2.6, 2.7)", async () => {
+  it("turns deep links on and off, adding the note's uid and leaving it when turned off (REQ-2.6, 2.7)", async () => {
     const id = newProjectId();
     const note = path.join(vault, "P", "P.md");
     const committed = committedRecord({
@@ -333,8 +335,27 @@ describe("opening the vault (REQ-2.0.8, 2.0.9)", () => {
     expect(JSON.stringify(saved)).not.toContain("Private Vault");
     expect(await readFile(note, "utf8")).toContain(`uid: ${id}`);
 
+    expect(await readLinkNoteUid(note)).toBe(id);
+
     const off = await setDeepLinks(repo, on, local, false);
     expect(off.deepLink).toBeUndefined();
-    expect(await readFile(note, "utf8")).toBe(before);
+    expect(
+      JSON.stringify(JSON.parse(await readFile(path.join(repo, COMMITTED_FILE), "utf8"))),
+    ).not.toContain("adv-uri");
+    // The uid stays: it's harmless, and the user may have added it by hand (design decision 18).
+    expect(await readLinkNoteUid(note)).toBe(id);
+    expect(await readFile(note, "utf8")).not.toBe(before);
+  });
+
+  it("adds a uid to a link note without touching anything else, and reads it back", async () => {
+    const note = path.join(vault, "Q", "Q.md");
+    await mkdir(path.dirname(note), { recursive: true });
+    await writeFile(note, "---\ntitle: Q\n---\nBody\n");
+    expect(await readLinkNoteUid(note)).toBeNull();
+    await setLinkNoteUid(note, "pd_x");
+    expect(await readFile(note, "utf8")).toBe("---\ntitle: Q\nuid: pd_x\n---\nBody\n");
+    expect(await readLinkNoteUid(note)).toBe("pd_x");
+    await setLinkNoteUid(path.join(vault, "missing.md"), "pd_x");
+    expect(await readLinkNoteUid(path.join(vault, "missing.md"))).toBeNull();
   });
 });

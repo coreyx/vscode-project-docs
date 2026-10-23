@@ -58,7 +58,7 @@
         "advancedUriDeepLinks": {
           "type": "boolean",
           "default": false,
-          "description": "Open the project in Obsidian through the Advanced URI plugin. Project Docs puts `uid: <project id>` in the project folder's folder note, which anchors the link to the folder however its contents change; if you add the uid by hand, put it there too."
+          "description": "Open the project in Obsidian through the Advanced URI plugin. Turning it on adds a deep link here and `uid: <project id>` to the project folder's folder note, which anchors the link to the folder however its contents change; Project Docs lists both changes and makes them only once you confirm. If you add the uid by hand, put it in the folder note too."
         }
       },
       "additionalProperties": false

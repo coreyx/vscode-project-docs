@@ -114,25 +114,92 @@ describe("PRIVATE.md setup and Obsidian links", function () {
     assert.equal(vscode.Uri.file(target.path).fsPath, vscode.Uri.file(repo).fsPath);
   });
 
-  it("opens Obsidian by path, or by deep link once the setting is on (REQ-2.6, 2.7)", async () => {
-    const note = path.join(vault, "Projects", "repo", "repo.md");
-    assert.equal(await docsApi.obsidian.uri(), `obsidian://open?path=${encodeURIComponent(note)}`);
-    assert.doesNotMatch(await readFile(note, "utf8"), /^uid:/m);
-
-    // Turned on by hand in the committed file, the setting is applied on the next reconcile.
-    const file = path.join(repo, ".project-docs.json");
-    const committed = JSON.parse(await readFile(file, "utf8")) as {
-      projectId: string;
-      settings: Record<string, unknown>;
+  describe("deep links (REQ-2.6, 2.7, 2.11, 2.12)", () => {
+    const note = () => path.join(vault, "Projects", "repo", "repo.md");
+    const file = () => path.join(repo, ".project-docs.json");
+    const byPath = () => `obsidian://open?path=${encodeURIComponent(note())}`;
+    const committed = async () =>
+      JSON.parse(await readFile(file(), "utf8")) as {
+        projectId: string;
+        settings: Record<string, unknown>;
+        deepLink?: string;
+      };
+    /** Edits the committed setting by hand, as a person or a teammate's commit would. */
+    const setByHand = async (on: boolean, deepLink?: string) => {
+      const record = await committed();
+      record.settings.advancedUriDeepLinks = on;
+      if (deepLink) record.deepLink = deepLink;
+      else delete record.deepLink;
+      await writeFile(file(), JSON.stringify(record, null, 2));
     };
-    committed.settings.advancedUriDeepLinks = true;
-    await writeFile(file, JSON.stringify(committed, null, 2));
-    await docsApi.obsidian.reconcile();
-    const deepLink = `obsidian://adv-uri?uid=${committed.projectId}`;
-    assert.equal(await docsApi.obsidian.uri(), deepLink);
-    const saved = await readFile(file, "utf8");
-    assert.ok(saved.includes(deepLink));
-    assert.ok(!saved.includes("Vault"));
-    assert.match(await readFile(note, "utf8"), new RegExp(`^uid: ${committed.projectId}$`, "m"));
+
+    it("opens by path while the setting is off, with no uid written (REQ-2.7)", async () => {
+      assert.equal(await docsApi.obsidian.uri(), byPath());
+      assert.doesNotMatch(await readFile(note(), "utf8"), /^uid:/m);
+    });
+
+    it("changes nothing when the offer's list of changes is cancelled, and both when confirmed (REQ-2.11)", async () => {
+      await mkdir(path.join(vault, ".obsidian", "plugins", "obsidian-advanced-uri"), {
+        recursive: true,
+      });
+      const [recordBefore, noteBefore] = [
+        await readFile(file(), "utf8"),
+        await readFile(note(), "utf8"),
+      ];
+      await docsApi.obsidian.reconcile({ offer: "turnOn", changes: "cancel" });
+      assert.equal(await readFile(file(), "utf8"), recordBefore);
+      assert.equal(await readFile(note(), "utf8"), noteBefore);
+      assert.equal(await docsApi.obsidian.uri(), byPath());
+
+      await docsApi.obsidian.reconcile({ offer: "turnOn", changes: "confirm" });
+      const { projectId, deepLink } = await committed();
+      assert.equal(deepLink, `obsidian://adv-uri?uid=${projectId}`);
+      assert.ok(!(await readFile(file(), "utf8")).includes("Vault"));
+      assert.match(await readFile(note(), "utf8"), new RegExp(`^uid: ${projectId}$`, "m"));
+      assert.equal(await docsApi.obsidian.uri(), deepLink);
+    });
+
+    it("turns a setting switched on by hand back off when its changes are cancelled", async () => {
+      await setByHand(true);
+      await docsApi.obsidian.reconcile({ changes: "cancel" });
+      const record = await committed();
+      assert.equal(record.settings.advancedUriDeepLinks, false);
+      assert.equal(record.deepLink, undefined);
+      assert.doesNotMatch(await readFile(note(), "utf8"), /^uid:/m);
+
+      await setByHand(true);
+      await docsApi.obsidian.reconcile({ changes: "confirm" });
+      assert.equal(await docsApi.obsidian.uri(), `obsidian://adv-uri?uid=${record.projectId}`);
+    });
+
+    it("asks before adding the uid a teammate's setting needs, and opens by path until then (REQ-2.12)", async () => {
+      const { projectId } = await committed();
+      await setByHand(true, `obsidian://adv-uri?uid=${projectId}`);
+      const noteBefore = await readFile(note(), "utf8");
+      assert.equal(await docsApi.obsidian.uri(), byPath());
+
+      await docsApi.obsidian.reconcile({ uid: "notNow" });
+      assert.equal(await readFile(note(), "utf8"), noteBefore);
+      // Answered once, it isn't asked again.
+      await docsApi.obsidian.reconcile();
+      assert.equal(await readFile(note(), "utf8"), noteBefore);
+      assert.equal(await docsApi.obsidian.uri(), byPath());
+
+      await docsApi.obsidian.reconcile({ uid: "add" });
+      assert.match(await readFile(note(), "utf8"), new RegExp(`^uid: ${projectId}$`, "m"));
+      assert.equal(await docsApi.obsidian.uri(), `obsidian://adv-uri?uid=${projectId}`);
+    });
+
+    it("removes the deep link when the setting is turned off, and leaves the uid", async () => {
+      await setByHand(true);
+      await docsApi.obsidian.reconcile({ changes: "confirm" });
+      const { projectId } = await committed();
+      const deepLink = `obsidian://adv-uri?uid=${projectId}`;
+      await setByHand(false, deepLink);
+      await docsApi.obsidian.reconcile();
+      assert.equal((await committed()).deepLink, undefined);
+      assert.match(await readFile(note(), "utf8"), new RegExp(`^uid: ${projectId}$`, "m"));
+      assert.equal(await docsApi.obsidian.uri(), byPath());
+    });
   });
 });

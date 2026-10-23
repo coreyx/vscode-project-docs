@@ -92,11 +92,12 @@ Turning a synced note private in Obsidian stops syncing it but leaves the repo's
 
 By default the command uses Obsidian's own `obsidian://open` link to the note.
 
-If you use the [Advanced URI](https://github.com/Vinzent03/obsidian-advanced-uri) plugin, Project Docs offers **deep links** (the `advancedUriDeepLinks` setting). With them on:
+If you use the [Advanced URI](https://github.com/Vinzent03/obsidian-advanced-uri) plugin, Project Docs offers **deep links** (the `advancedUriDeepLinks` setting). The link finds the folder note even after the folder is renamed or moved. Turning them on makes two changes, which Project Docs lists and makes only once you confirm, both or neither:
 
 - the folder note gets a `uid: <project id>` property;
-- `.project-docs.json` gets an `obsidian://adv-uri?uid=<project id>` link, which names no vault, so it's safe to commit;
-- the link finds the folder note even after the folder is renamed or moved.
+- `.project-docs.json` gets an `obsidian://adv-uri?uid=<project id>` link. It names no vault, so it's safe to commit, and everyone who clones the repo gets it.
+
+If you switch the setting on by editing `.project-docs.json`, you get the same list, and cancelling turns the setting back off. On a machine whose folder note has no `uid` yet, for example after a teammate turned deep links on, Project Docs asks once before adding it; until then, **Open in Obsidian** opens the note by its path. Turning deep links off removes the link from `.project-docs.json` and leaves the `uid` in the note.
 
 **`uid: <project id>` belongs in the project folder's folder note.** That anchors the link to the project folder rather than to whichever note happens to hold it, so it keeps working however the folder's contents change. If you add the `uid` yourself, put it there.
 
