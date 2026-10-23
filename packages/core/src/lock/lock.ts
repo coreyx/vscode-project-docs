@@ -146,17 +146,29 @@ export async function acquireLock(
 
 function makeHandle(file: string, initial: LockInfo, now: () => Date): LockHandle {
   let info = initial;
+  let released = false;
   const stillOurs = async () => (await readInfo(file))?.token === info.token;
+  // Heartbeats and the release run one at a time. Otherwise a heartbeat already past its ownership
+  // check could rewrite the lock file just after the release removed it, and the lock would look
+  // held until it went stale.
+  let pending: Promise<unknown> = Promise.resolve();
+  const serially = <T>(work: () => Promise<T>): Promise<T> => {
+    const run = pending.then(work, work);
+    pending = run.catch(() => undefined);
+    return run;
+  };
 
   const handle: LockHandle = {
     get info() {
       return info;
     },
-    async heartbeat() {
-      if (!(await stillOurs())) return false;
-      info = { ...info, heartbeatAt: now().toISOString() };
-      await writeFileAtomic(file, JSON.stringify(info));
-      return true;
+    heartbeat() {
+      return serially(async () => {
+        if (released || !(await stillOurs())) return false;
+        info = { ...info, heartbeatAt: now().toISOString() };
+        await writeFileAtomic(file, JSON.stringify(info));
+        return true;
+      });
     },
     startHeartbeat(intervalMs = HEARTBEAT_INTERVAL_MS) {
       const timer = setInterval(() => {
@@ -165,8 +177,11 @@ function makeHandle(file: string, initial: LockInfo, now: () => Date): LockHandl
       timer.unref();
       return () => clearInterval(timer);
     },
-    async release() {
-      if (await stillOurs()) await rm(file, { force: true });
+    release() {
+      return serially(async () => {
+        released = true;
+        if (await stillOurs()) await rm(file, { force: true });
+      });
     },
   };
   return handle;

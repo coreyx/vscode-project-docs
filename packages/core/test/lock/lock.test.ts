@@ -18,7 +18,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await rm(dir, { recursive: true, force: true });
+  await rm(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
 });
 
 function held(result: LockHandle | LockHeldBy): LockHandle {
@@ -149,6 +149,16 @@ describe("lock handle", () => {
     expect(JSON.parse(await readFile(path.join(dir, "lock.json"), "utf8")).token).toBe(
       second.info.token,
     );
+  });
+
+  it("never recreates the lock file with a heartbeat that overlaps the release", async () => {
+    const handle = held(await acquireLock(dir, "vscode"));
+    const beats = [handle.heartbeat(), handle.heartbeat()];
+    await handle.release();
+    const after = handle.heartbeat();
+    await Promise.all(beats);
+    expect(await after).toBe(false);
+    await expect(readFile(path.join(dir, "lock.json"), "utf8")).rejects.toThrow();
   });
 
   it("heartbeats on a timer until stopped", async () => {
