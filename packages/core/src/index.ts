@@ -7,7 +7,7 @@
  */
 
 /** The core's package version, reported by the CLI and the extension in logs and `--version`. */
-export const CORE_VERSION = "0.1.0";
+export const CORE_VERSION = "0.2.0";
 
 export * from "./paths/index.js";
 
