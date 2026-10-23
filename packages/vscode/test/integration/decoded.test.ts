@@ -129,6 +129,30 @@ describe("decoded views", function () {
     await eventually(() => docsApi.decoded.modeText === undefined, 5_000);
   });
 
+  it("shows a doc unchanged, with a note, while PRIVATE.md's table is empty (REQ-15.4)", async () => {
+    await writeFile(
+      path.join(repo, "PRIVATE.md"),
+      "## Placeholders\n\n| Placeholder in the repo | Real value | What it is |\n| --- | --- | --- |\n",
+    );
+    const coded = await readFile(file, "utf8");
+    await vscode.window.showTextDocument(vscode.Uri.file(file));
+    const result = (await vscode.commands.executeCommand("projectDocs.showDecoded")) as {
+      uri?: vscode.Uri;
+      note?: string;
+    };
+    assert.match(result.note ?? "", /no placeholders yet/);
+    assert.equal(vscode.window.activeTextEditor?.document.uri.scheme, SCHEME);
+    assert.equal(vscode.window.activeTextEditor?.document.getText(), coded);
+
+    // Without the heading, it's the standard's error again (REQ-14.0.5).
+    await writeFile(path.join(repo, "PRIVATE.md"), "| `myhost` | `x` | |\n");
+    await vscode.window.showTextDocument(vscode.Uri.file(file));
+    const broken = (await vscode.commands.executeCommand("projectDocs.showDecoded")) as {
+      error?: string;
+    };
+    assert.match(broken.error ?? "", /no '## Placeholders' section/);
+  });
+
   it("opens a decoded Markdown preview", async () => {
     await vscode.window.showTextDocument(vscode.Uri.file(file));
     await vscode.commands.executeCommand("projectDocs.openDecodedPreview");

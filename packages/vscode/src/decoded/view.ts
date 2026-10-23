@@ -18,8 +18,16 @@ import {
 import type { SyncController } from "../sync/controller.js";
 import { DECODED_SCHEME, MODE_TEXT, decodedUriParts } from "./naming.js";
 
-/** What opening a decoded view did: the document, or the standard's error and nothing shown. */
-export type DecodeResult = { readonly uri: vscode.Uri } | { readonly error: string };
+/**
+ * What opening a decoded view did: the document, with a note when PRIVATE.md maps nothing yet, or
+ * the standard's error and nothing shown.
+ */
+export type DecodeResult =
+  { readonly uri: vscode.Uri; readonly note?: string } | { readonly error: string };
+
+/** Shown with a decoded view while PRIVATE.md's table is empty (REQ-15.0.6). */
+export const NO_PLACEHOLDERS_NOTE =
+  "PRIVATE.md has no placeholders yet, so the decoded view shows the doc as it is.";
 
 /** Reads the repo's PRIVATE.md, or the standard's error explaining why it can't be used. */
 async function mappingFor(repoRoot: string): Promise<PrivateMdMapping | { error: string }> {
@@ -196,6 +204,10 @@ export class DecodedView implements vscode.FileSystemProvider, vscode.Disposable
     const document = await vscode.workspace.openTextDocument(uri);
     await vscode.languages.setTextDocumentLanguage(document, "markdown");
     await vscode.window.showTextDocument(document, { preview: false });
+    if (mapping.size === 0) {
+      void vscode.window.showInformationMessage(NO_PLACEHOLDERS_NOTE);
+      return { uri, note: NO_PLACEHOLDERS_NOTE };
+    }
     return { uri };
   }
 

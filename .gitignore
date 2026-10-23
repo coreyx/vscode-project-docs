@@ -8,3 +8,4 @@ PRIVATE.md
 *.private.md
 .project-docs.local.json
 out/
+__pycache__/

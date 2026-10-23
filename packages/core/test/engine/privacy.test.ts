@@ -81,7 +81,9 @@ describe("loadMapping", () => {
       path.join(repo, "PRIVATE.md"),
       "## Placeholders\n\n| Placeholder in the repo | Real value | What it is |\n| --- | --- | --- |\n",
     );
-    expect(await loadMapping(repo)).toEqual({ mapping: null });
+    const empty = await loadMapping(repo);
+    expect(empty.problem).toBeUndefined();
+    expect(empty.mapping?.size).toBe(0);
     await writeFile(path.join(repo, "PRIVATE.md"), "no table\n");
     expect((await loadMapping(repo)).problem).toMatch(/can't be read/);
   });

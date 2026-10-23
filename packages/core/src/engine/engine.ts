@@ -155,9 +155,9 @@ export async function loadMapping(
     return { mapping: await loadPlaceholders(path.join(repoRoot, "PRIVATE.md")) };
   } catch (error) {
     if (error instanceof PrivateMdError) {
-      // No file, or the empty table "Set up PRIVATE.md" starts with: nothing to protect yet. The
-      // standard calls an empty table an error for decoding, which the decoded view still shows.
-      if (error.kind === "missing-file" || error.kind === "no-rows") return { mapping: null };
+      // No file: nothing to protect. (The empty table "Set up PRIVATE.md" creates isn't an error:
+      // it parses to an empty mapping, design decision 19.)
+      if (error.kind === "missing-file") return { mapping: null };
       return {
         mapping: null,
         problem: `PRIVATE.md can't be read (${error.message}), so real values aren't being checked`,

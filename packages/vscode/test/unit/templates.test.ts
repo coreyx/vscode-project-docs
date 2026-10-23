@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PrivateMdError, parsePlaceholders } from "@specdevship/project-docs-core";
+import { parsePlaceholders } from "@specdevship/project-docs-core";
 import {
   STANDARD_URL,
   privateExampleTemplate,
@@ -12,8 +12,10 @@ describe("the PRIVATE.md templates (REQ-15.0.3)", () => {
     expect(text).toContain(
       "## Placeholders\n\n| Placeholder in the repo | Real value | What it is |",
     );
-    // No rows yet, which the standard's decoder reports as such.
-    expect(() => parsePlaceholders(text)).toThrow(PrivateMdError);
+    // No rows yet: a valid, empty table under the standard's 0.2.0 (design decision 19), in both
+    // line-ending styles.
+    expect(parsePlaceholders(text).size).toBe(0);
+    expect(parsePlaceholders(privateMdTemplate("\r\n")).size).toBe(0);
     expect(text).toContain(STANDARD_URL);
   });
 

@@ -1,10 +1,8 @@
 ## Placeholders
 
 | Placeholder | Real | What |
-| --- | --- | --- |
+| :--- | :---: | ---: |
 | `myhost` | `REAL1` | host |
-  | `indented` | `NO` | not at column 0 |
-| myserver | `NO` | not a code span |
 
 ### More
 

@@ -135,7 +135,7 @@ describe("decoder agrees with the Python reference implementation", () => {
     "on 500 generated cases",
     () => {
       const cases = generate(500);
-      const result = spawnSync(python ?? "", ["-I", "-c", DRIVER, REFERENCE_DIR], {
+      const result = spawnSync(python ?? "", ["-I", "-B", "-c", DRIVER, REFERENCE_DIR], {
         input: Buffer.from(JSON.stringify(cases), "utf8"),
         maxBuffer: 64 * 1024 * 1024,
       });

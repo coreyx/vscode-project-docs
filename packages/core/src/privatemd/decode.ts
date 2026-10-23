@@ -10,7 +10,8 @@ import { readFile } from "node:fs/promises";
 export type PrivateMdMapping = ReadonlyMap<string, string>;
 
 /** The standard's hard errors (§7), plus nothing else: no output may be produced on any of them. */
-export type PrivateMdErrorKind = "missing-file" | "no-section" | "no-rows" | "duplicate";
+export type PrivateMdErrorKind =
+  "missing-file" | "no-section" | "no-table" | "bad-row" | "duplicate";
 
 /** A condition the standard treats as a hard error. `kind` is what the conformance cases name. */
 export class PrivateMdError extends Error {
@@ -56,45 +57,84 @@ export function parseCodeSpan(cell: string): string | null {
   return text;
 }
 
+// One cell of a table's delimiter row: hyphens, with an optional alignment colon at either end.
+const DELIMITER_CELL = /^:?-+:?$/;
+
+/** A table line's cells, without the outer pipes. A plain split: cells can't contain `|`. */
+function tableCells(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|+|\|+$/g, "")
+    .split("|");
+}
+
+/** True for a line whose first character other than spaces and tabs is `|` (§4.2). */
+function isTableLine(line: string): boolean {
+  return line.replace(/^[ \t]+/, "").startsWith("|");
+}
+
+/** True for a table's delimiter row, such as `| --- | :---: |` (§4.2). */
+function isDelimiterRow(line: string): boolean {
+  return isTableLine(line) && tableCells(line).every((cell) => DELIMITER_CELL.test(cell.trim()));
+}
+
+/** The placeholder and real value of a mapping row (§4.2), or null for any other line. */
+function mappingRow(line: string): readonly [string, string] | null {
+  if (!line.startsWith("|")) return null;
+  const cells = tableCells(line);
+  if (cells.length < 2) return null;
+  const placeholder = parseCodeSpan(cells[0] ?? "");
+  const real = parseCodeSpan(cells[1] ?? "");
+  if (!placeholder || real === null) return null;
+  return [placeholder, real];
+}
+
 /**
  * Reads the placeholder table from PRIVATE.md's text. `source` names the file in error messages.
- * Throws PrivateMdError when the section or its rows are missing or a placeholder is repeated,
- * because a silently partial mapping would leave placeholders in the output.
+ * Every table line in the section must be a mapping row, a delimiter row or a header row (§4.2).
+ * Throws PrivateMdError when the section is missing, when it has no table, on any other table line,
+ * and when a placeholder is repeated: a silently skipped row would leave a real value unprotected.
+ * A table with no mapping rows is valid and gives an empty mapping (§4.5).
  */
 export function parsePlaceholders(text: string, source = "PRIVATE.md"): Map<string, string> {
   const lines = text.split(LINE_BREAKS);
   // splitlines() drops a final empty element after a trailing break; split() keeps it. It can't
-  // match the heading or a row, so it changes nothing.
+  // match the heading, and as a section's last line it's neither a row nor a delimiter.
   const start = lines.indexOf(PLACEHOLDER_HEADING);
   if (start === -1) {
     throw new PrivateMdError("no-section", `${source}: no '${PLACEHOLDER_HEADING}' section`);
   }
-  const mapping = new Map<string, string>();
+  const section: string[] = [];
   for (const line of lines.slice(start + 1)) {
     if (line.startsWith("## ")) break;
-    if (!line.startsWith("|")) continue;
-    // A plain split on '|': the standard forbids a pipe in placeholder and real-value cells.
-    const cells = line
-      .trim()
-      .replace(/^\|+|\|+$/g, "")
-      .split("|");
-    if (cells.length < 2) continue;
-    const placeholder = parseCodeSpan(cells[0] ?? "");
-    const real = parseCodeSpan(cells[1] ?? "");
-    if (!placeholder || real === null) continue;
-    if (mapping.has(placeholder)) {
-      throw new PrivateMdError(
-        "duplicate",
-        `${source}: placeholder ${JSON.stringify(placeholder)} is listed twice`,
-      );
-    }
-    mapping.set(placeholder, real);
+    section.push(line);
   }
-  if (mapping.size === 0) {
+  const mapping = new Map<string, string>();
+  let hasTable = false;
+  for (const [index, line] of section.entries()) {
+    if (!isTableLine(line)) continue;
+    hasTable = true;
+    const row = mappingRow(line);
+    if (row) {
+      const [placeholder, real] = row;
+      if (mapping.has(placeholder)) {
+        throw new PrivateMdError(
+          "duplicate",
+          `${source}: placeholder ${JSON.stringify(placeholder)} is listed twice`,
+        );
+      }
+      mapping.set(placeholder, real);
+      continue;
+    }
+    if (isDelimiterRow(line) || isDelimiterRow(section[index + 1] ?? "")) continue;
+    // The line's text is never quoted: it may hold a real value.
     throw new PrivateMdError(
-      "no-rows",
-      `${source}: no placeholder rows under '${PLACEHOLDER_HEADING}'`,
+      "bad-row",
+      `${source}: line ${start + index + 2} in the '${PLACEHOLDER_HEADING}' table isn't a placeholder row, a header or a delimiter. Check that it starts at the first column and that the placeholder and the real value are each in backticks.`,
     );
+  }
+  if (!hasTable) {
+    throw new PrivateMdError("no-table", `${source}: no table under '${PLACEHOLDER_HEADING}'`);
   }
   return mapping;
 }

@@ -342,7 +342,7 @@ The changes agreed after the first review: a safeguard for notes that stop being
     3. Turning the setting off removes `deepLink` and leaves `uid` in place.
     4. Integration tests for confirm, cancel, a teammate's commit, and turning it off.
 
-- [ ] **TASK-35: Accept an empty placeholder table**
+- [x] **TASK-35: Accept an empty placeholder table**
   - **Associated Acceptance Criteria**: `15.4`, `14.1`, `14.4`
   - **Concrete Steps**:
     1. Once the PRIVATE.md standard allows a well-formed empty table (a separate spec in `private-md-standard`), re-vendor its conformance cases and the bundled scripts, and record the new source commit.

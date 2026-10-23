@@ -43,6 +43,8 @@ PUBLIC_ONLY_BLOCK = re.compile(
 ALNUM = r"[^\W_]"
 # A Markdown code span: a run of backticks, the content, then the same run again.
 CODE_SPAN = re.compile(r"^(`+)(.*?)\1$", re.S)
+# One cell of a table's delimiter row: hyphens, with an optional alignment colon at either end.
+DELIMITER_CELL = re.compile(r"^:?-+:?$")
 # The commit check skips real values shorter than this, because they would match ordinary words.
 MIN_CHECK_LENGTH = 4
 
@@ -51,8 +53,9 @@ class PrivateMdError(Exception):
     """A condition the standard treats as a hard error (§7): no output may be produced.
 
     ``kind`` is a stable identifier that tests and the conformance cases assert on; ``message`` is
-    for people. The standard's own errors are ``missing-file``, ``no-section``, ``no-rows`` and
-    ``duplicate``; the command-line tools add ``no-repo``, ``usage`` and ``unsafe-output``.
+    for people. The standard's own errors are ``missing-file``, ``no-section``, ``no-table``,
+    ``bad-row`` and ``duplicate``; the command-line tools add ``no-repo``, ``usage`` and
+    ``unsafe-output``.
     """
 
     def __init__(self, kind: str, message: str) -> None:
@@ -76,13 +79,45 @@ def parse_code_span(cell: str) -> str | None:
     return text
 
 
+def table_cells(line: str) -> list[str]:
+    """Split a table line into its cells, without the outer pipes.
+
+    A plain split on '|': the standard forbids a pipe in placeholder and real-value cells.
+    """
+    return line.strip().strip("|").split("|")
+
+
+def is_table_line(line: str) -> bool:
+    """True for a line whose first character other than spaces and tabs is '|' (§4.2)."""
+    return line.lstrip(" \t").startswith("|")
+
+
+def is_delimiter_row(line: str) -> bool:
+    """True for a table's delimiter row, such as ``| --- | :---: |`` (§4.2)."""
+    return is_table_line(line) and all(DELIMITER_CELL.match(cell.strip()) for cell in table_cells(line))
+
+
+def mapping_row(line: str) -> tuple[str, str] | None:
+    """Return (placeholder, real value) when the line is a mapping row (§4.2), else None."""
+    if not line.startswith("|"):
+        return None
+    cells = table_cells(line)
+    if len(cells) < 2:
+        return None
+    placeholder, real = parse_code_span(cells[0]), parse_code_span(cells[1])
+    if not placeholder or real is None:
+        return None
+    return placeholder, real
+
+
 def load_placeholders(private_md: Path) -> dict[str, str]:
     """Read the placeholder -> real value table under PRIVATE.md's ``## Placeholders`` heading.
 
-    Only rows whose first two cells are both code spans count, so the header and separator rows
-    are skipped. Raises PrivateMdError when the file, the section or the table is missing, or when a
-    placeholder is listed twice, because a silently partial mapping would leave placeholders in the
-    output.
+    Every table line in the section must be a mapping row, a delimiter row or a header row (§4.2).
+    Raises PrivateMdError when the file or the section is missing, when the section has no table,
+    on any other table line, and when a placeholder is listed twice, because a silently skipped row
+    would leave a real value unprotected and a placeholder undecoded. A table with no mapping rows
+    is valid and gives an empty mapping (§4.5).
     """
     if not private_md.is_file():
         raise PrivateMdError(
@@ -95,25 +130,40 @@ def load_placeholders(private_md: Path) -> dict[str, str]:
     except ValueError:
         raise PrivateMdError("no-section", f"{private_md}: no '{PLACEHOLDER_HEADING}' section") from None
 
-    mapping: dict[str, str] = {}
-    for line in lines[start:]:
+    section: list[tuple[int, str]] = []
+    for number, line in enumerate(lines[start:], start=start + 1):
         if line.startswith("## "):
             break
-        if not line.startswith("|"):
-            continue
-        # A plain split on '|': the standard forbids a pipe in placeholder and real-value cells.
-        cells = line.strip().strip("|").split("|")
-        if len(cells) < 2:
-            continue
-        placeholder, real = parse_code_span(cells[0]), parse_code_span(cells[1])
-        if not placeholder or real is None:
-            continue
-        if placeholder in mapping:
-            raise PrivateMdError("duplicate", f"{private_md}: placeholder {placeholder!r} is listed twice")
-        mapping[placeholder] = real
+        section.append((number, line))
 
-    if not mapping:
-        raise PrivateMdError("no-rows", f"{private_md}: no placeholder rows under '{PLACEHOLDER_HEADING}'")
+    mapping: dict[str, str] = {}
+    has_table = False
+    for index, (number, line) in enumerate(section):
+        if not is_table_line(line):
+            continue
+        has_table = True
+        row = mapping_row(line)
+        if row is not None:
+            placeholder, real = row
+            if placeholder in mapping:
+                raise PrivateMdError("duplicate", f"{private_md}: placeholder {placeholder!r} is listed twice")
+            mapping[placeholder] = real
+            continue
+        if is_delimiter_row(line):
+            continue
+        following = section[index + 1][1] if index + 1 < len(section) else ""
+        if is_delimiter_row(following):
+            continue  # A header row.
+        # The line's text is never quoted: it may hold a real value.
+        raise PrivateMdError(
+            "bad-row",
+            f"{private_md}: line {number} in the '{PLACEHOLDER_HEADING}' table isn't a placeholder "
+            "row, a header or a delimiter. Check that it starts at the first column and that the "
+            "placeholder and the real value are each in backticks.",
+        )
+
+    if not has_table:
+        raise PrivateMdError("no-table", f"{private_md}: no table under '{PLACEHOLDER_HEADING}'")
     return mapping
 
 
@@ -139,6 +189,9 @@ def restore(text: str, mapping: dict[str, str]) -> str:
     so a real value that happens to contain another placeholder stays intact.
     """
     text = PUBLIC_ONLY_BLOCK.sub("", text)
+    if not mapping:
+        # An empty table (§4.5). An empty alternation would match everywhere.
+        return text
     ordered = sorted(mapping, key=len, reverse=True)
     combined = re.compile("|".join(f"({placeholder_pattern(p)})" for p in ordered))
     return combined.sub(lambda m: mapping[ordered[m.lastindex - 1]], text)

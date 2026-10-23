@@ -84,6 +84,7 @@ Turning a synced note private in Obsidian stops syncing it but leaves the repo's
 - **Project Docs: Set up PRIVATE.md** creates `PRIVATE.md` with an empty table and a committed `PRIVATE.example.md`, and adds `PRIVATE.md` and `*.private.md` to `.gitignore`.
 - When a linked repo has a PRIVATE.md, Project Docs offers once to install the standard's **commit hooks**, which block any commit containing a real value. They need Python 3. **Project Docs: Install PRIVATE.md Commit Hooks** runs the same thing later.
 - **Decoded view.** Click the eye in a doc's title bar to read it with real values. The view opens with a tab ending "(Decoded: real values shown)" and the status bar says so too. It follows your edits, and it can't be edited or saved, so real values never end up in a file. Click the closed eye to go back; the status bar then says **Coded**. **Open Decoded Preview** shows the same text in VS Code's Markdown preview.
+- A PRIVATE.md whose table has no rows yet, as setup creates it, is fine: there's nothing to protect, and the decoded view shows the doc as it is. Every row in the table must be a proper placeholder row: one with a missing backtick, or an indented one, is an error rather than being skipped, so a typo never leaves a real value unprotected.
 - If PRIVATE.md is missing or invalid, nothing is decoded and you're told why. Since PRIVATE.md is gitignored, git can't restore it: keep a copy somewhere safe.
 
 ## Opening the project in Obsidian

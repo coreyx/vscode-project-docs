@@ -75,10 +75,28 @@ describe("parsePlaceholders", () => {
     ]);
   });
 
-  it("skips a row whose placeholder is empty rather than failing", () => {
-    expect([...parsePlaceholders("## Placeholders\n| `` | `x` |\n| `a` | `1` |\n")]).toEqual([
-      ["a", "1"],
-    ]);
+  it("fails on a row whose placeholder is empty, naming its line but not its value (0.2.0)", () => {
+    const parse = () => parsePlaceholders("## Placeholders\n| `` | `secret-x` |\n| `a` | `1` |\n");
+    expect(parse).toThrow(expect.objectContaining({ kind: "bad-row" }));
+    expect(parse).toThrow(/line 2/);
+    expect(parse).not.toThrow(/secret-x/);
+  });
+
+  it("gives an empty mapping for a table with only a header and a delimiter (§4.5)", () => {
+    const text = "## Placeholders\n\n| P | R |\n| :--- | ---: |\n\n## Notes\n\n| `a` | `1` |\n";
+    expect(parsePlaceholders(text).size).toBe(0);
+  });
+
+  it("counts a header only when a delimiter row follows it directly", () => {
+    expect(() => parsePlaceholders("## Placeholders\n\n| P | R |\n\n| --- | --- |\n")).toThrow(
+      expect.objectContaining({ kind: "bad-row" }),
+    );
+  });
+
+  it("names the error for a section with no table", () => {
+    expect(() => parsePlaceholders("## Placeholders\n\nTo do.\n")).toThrow(
+      expect.objectContaining({ kind: "no-table" }),
+    );
   });
 
   it("names the source in errors", () => {
