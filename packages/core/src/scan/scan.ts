@@ -8,6 +8,7 @@
 import type { SideFs, Side } from "../sidefs/index.js";
 import { isTempName } from "../sidefs/index.js";
 import { decodeUtf8, detectLineEnding, markdownHash, sha256, type LineEnding } from "./content.js";
+import type { IgnoreRules } from "./ignore.js";
 
 /** Markdown files larger than this are skipped and reported (REQ-20.0.3). */
 export const MAX_MARKDOWN_BYTES = 5 * 1024 * 1024;
@@ -77,6 +78,11 @@ export interface ScanOptions {
   readonly linkNoteKey?: string | undefined;
   /** Cache to reuse and update; omit to hash everything. */
   readonly cache?: StatCache | undefined;
+  /**
+   * The repo's ignore rules (design decision 20). Both sides get the same rules, so a file is left
+   * out of both snapshots or neither. Omitted, nothing is ignored beyond the fixed exclusions.
+   */
+  readonly ignore?: IgnoreRules | undefined;
 }
 
 /** Scans one side into a snapshot. */
@@ -85,8 +91,11 @@ export async function scan(fs: SideFs, options: ScanOptions): Promise<Snapshot> 
   const skipped: SkippedFile[] = [];
   const seen = new Set<string>();
 
-  for await (const file of fs.list(isExcludedFolder)) {
-    if (isNeverSynced(file.key)) continue;
+  const ignore = options.ignore;
+  const skipFolder = (key: string) => isExcludedFolder(key) || ignore?.skipsFolder(key) === true;
+  for await (const file of fs.list(skipFolder)) {
+    // Ignored files are left out silently, like the never-synced names: they aren't problems.
+    if (isNeverSynced(file.key) || ignore?.skips(file.key, false)) continue;
     if (file.kind === "symlink") {
       skipped.push({
         key: file.key,

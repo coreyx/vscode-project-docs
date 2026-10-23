@@ -371,7 +371,7 @@ The changes agreed after the first review: a safeguard for notes that stop being
 
 A change agreed before the release: files git ignores, and anything in `node_modules`, stay out of the sync, so the repo root can be linked safely. Notes kept out of git on purpose can still sync, and none stops syncing without a word.
 
-- [ ] **TASK-36: Skip files git ignores, on both sides**
+- [x] **TASK-36: Skip files git ignores, on both sides**
   - **Associated Acceptance Criteria**: `3.6`, `3.8`, `3.9`
   - **Concrete Steps**:
     1. Add the `ignore` package to the core, pinned to an exact version.

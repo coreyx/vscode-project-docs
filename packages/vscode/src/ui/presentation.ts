@@ -122,6 +122,7 @@ export function kindLabel(kind: string): string {
     "scan-skipped": "skipped",
     "write-failing": "keeps failing",
     "was-private": "was private, waiting for you",
+    "ignore-rules-unreadable": "can't be read, so sync is stopped",
   };
   return labels[kind] ?? kind;
 }

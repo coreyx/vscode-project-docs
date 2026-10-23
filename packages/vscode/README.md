@@ -27,6 +27,7 @@ Project Docs runs on Windows, macOS and Linux, and in WSL with the vault on the 
 - A pass that would delete or overwrite many files at once (more than a quarter of the linked files, or more than 20) waits for you to say **Proceed**, with a summary of what it would do.
 - Obsidian `[[wikilinks]]` written in the vault become standard Markdown links in both copies, so the docs read correctly on GitHub. Set `keepLinksAsWritten` to leave them alone.
 - Only Markdown syncs by default. Set `syncAttachments` to sync images and other files too.
+- What git ignores doesn't sync, in either direction: anything your `.gitignore` files or `.git/info/exclude` match, and anything in a `node_modules` folder, `.gitignore` or not. So linking the repo root syncs your docs, not your dependencies or build output. If you keep notes out of git on purpose but want them in Obsidian, list them in `syncIgnored`, for example `"/scratch/"`. A leading slash means the folder at the top of the linked folder; without one, the pattern matches at any depth, which makes each pass look inside every ignored folder. A `.gitignore` that can't be read stops syncing until it's fixed, and the **Project Docs** view names it.
 - Line endings are kept per side: a file that is CRLF in the repo and LF in the vault stays that way. A new file takes the line endings most of that side's docs already use, or LF, whatever your operating system, so a Windows checkout of an LF repo never gets CRLF files.
 - Sync pauses with **Project Docs: Pause Sync** and catches up with **Resume Sync**.
 
@@ -106,14 +107,15 @@ If you switch the setting on by editing `.project-docs.json`, you get the same l
 
 Settings live in `.project-docs.json`, so everyone who clones the repo shares them. VS Code validates the file and describes each setting on hover.
 
-| Setting                          | Default                    | What it does                                                     |
-| -------------------------------- | -------------------------- | ---------------------------------------------------------------- |
-| `privateSubfolder`               | `private`                  | The vault subfolder whose notes never sync.                      |
-| `folderNotePattern`              | `{folder}/{folderName}.md` | Where the link note goes.                                        |
-| `syncAttachments`                | `false`                    | Also sync files other than Markdown.                             |
-| `keepLinksAsWritten`             | `false`                    | Leave wikilinks as written instead of converting them.           |
-| `allowLinksOutsideProjectFolder` | `false`                    | Let synced notes link to vault notes outside the project folder. |
-| `advancedUriDeepLinks`           | `false`                    | Open the project through Advanced URI deep links (see above).    |
+| Setting                          | Default                    | What it does                                                       |
+| -------------------------------- | -------------------------- | ------------------------------------------------------------------ |
+| `privateSubfolder`               | `private`                  | The vault subfolder whose notes never sync.                        |
+| `folderNotePattern`              | `{folder}/{folderName}.md` | Where the link note goes.                                          |
+| `syncAttachments`                | `false`                    | Also sync files other than Markdown.                               |
+| `keepLinksAsWritten`             | `false`                    | Leave wikilinks as written instead of converting them.             |
+| `allowLinksOutsideProjectFolder` | `false`                    | Let synced notes link to vault notes outside the project folder.   |
+| `advancedUriDeepLinks`           | `false`                    | Open the project through Advanced URI deep links (see above).      |
+| `syncIgnored`                    | `[]`                       | Paths that sync although git ignores them, in `.gitignore` syntax. |
 
 ## For agents and scripts: the link files
 

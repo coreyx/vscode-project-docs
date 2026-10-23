@@ -30,7 +30,7 @@ import {
   type PrivateMdMapping,
 } from "../privatemd/index.js";
 import { COMMITTED_FILE, readLink, type CommittedLink, type LocalLink } from "../records/index.js";
-import { decodeUtf8, scan, type StatCache } from "../scan/index.js";
+import { decodeUtf8, loadIgnoreRules, scan, type StatCache } from "../scan/index.js";
 import { createNodeSideFs, vaultTrash, type SideFs, type TrashFn } from "../sidefs/index.js";
 import { StateStore, projectStateDir, stateRoot } from "../state/index.js";
 import {
@@ -218,12 +218,22 @@ export async function planPass(
   if (problem) problems.push(problem);
   const { index } = await project.store.loadIndex();
   const includeAttachments = committed.settings.syncAttachments;
+  // One set of rules for both scans, so an ignored file drops out of both snapshots (decision 20).
+  const loaded = await loadIgnoreRules(
+    project.repoRoot,
+    committed.docsFolder,
+    committed.settings.syncIgnored,
+  );
+  if ("unreadable" in loaded)
+    return { plan: unreadableRulesPlan(committed.docsFolder, loaded.unreadable), problems };
+  const ignore = loaded.rules;
   const [repo, vault, privateFiles, vaultFiles, confirmations] = await Promise.all([
-    scan(project.repo, { includeAttachments, cache: cache?.repo }),
+    scan(project.repo, { includeAttachments, cache: cache?.repo, ignore }),
     scan(project.vault, {
       includeAttachments,
       linkNoteKey: project.linkNoteKey,
       cache: cache?.vault,
+      ignore,
     }),
     loadPrivateFiles(local.vaultFolderPath),
     listVault(local.vaultRoot),
@@ -258,6 +268,28 @@ export async function planPass(
     },
   });
   return { plan: planned, problems };
+}
+
+/**
+ * A pass that does nothing but report the rule file that couldn't be read (REQ-3.0.9). Without
+ * the rules, an ignored folder such as `node_modules` would be copied, so nothing is synced. The
+ * notice's key is the file's path relative to the docs folder, so opening it finds the file.
+ */
+function unreadableRulesPlan(
+  docsFolder: string,
+  unreadable: { file: string; message: string },
+): Plan {
+  return {
+    actions: [],
+    notices: [
+      {
+        key: path.posix.relative(docsFolder, unreadable.file),
+        code: "ignore-rules-unreadable",
+        message: unreadable.message,
+      },
+    ],
+    bulk: { destructive: 0, threshold: 0, guarded: false },
+  };
 }
 
 /**

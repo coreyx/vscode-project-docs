@@ -13,8 +13,10 @@ afterEach(async () => {
 });
 
 describe("isIgnoredChange", () => {
-  it("ignores the engine's metadata, Obsidian's config and trash, git and temp files", () => {
+  it("ignores the engine's metadata, Obsidian's config and trash, git, node_modules and temp files", () => {
     for (const p of [
+      "node_modules/pkg/README.md",
+      "site\\node_modules\\.cache\\x",
       ".project-docs/status.json",
       ".obsidian/workspace.json",
       ".trash/old.md",
@@ -28,6 +30,7 @@ describe("isIgnoredChange", () => {
   it("keeps ordinary notes", () => {
     expect(isIgnoredChange("guides/setup.md")).toBe(false);
     expect(isIgnoredChange("project-docs.md")).toBe(false);
+    expect(isIgnoredChange("node_modules_notes.md")).toBe(false);
   });
 });
 

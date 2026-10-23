@@ -183,6 +183,19 @@ describe("validation", () => {
     ]);
   });
 
+  it("takes syncIgnored as a list of patterns, and nothing else (design decision 20)", () => {
+    const base = { format: 1, projectId: newProjectId(), docsFolder: "docs", vaultFolder: "P" };
+    expect(validateCommitted({ ...base, settings: { syncIgnored: ["/scratch/"] } })).toMatchObject({
+      settings: { syncIgnored: ["/scratch/"] },
+    });
+    for (const syncIgnored of ["/scratch/", [1], { a: "b" }]) {
+      const bad = validateCommitted({ ...base, settings: { syncIgnored } });
+      expect("problems" in bad && bad.problems).toEqual([
+        "settings.syncIgnored must be a list of patterns",
+      ]);
+    }
+  });
+
   it("ships a JSON schema matching the record", () => {
     expect(COMMITTED_SCHEMA.required).toEqual(["format", "projectId", "docsFolder", "vaultFolder"]);
   });

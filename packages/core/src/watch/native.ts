@@ -5,13 +5,20 @@
  */
 import { watch, type FSWatcher } from "node:fs";
 
-/** True for paths that never need a sync pass: engine metadata, Obsidian config and trash, temp files. */
+/**
+ * True for paths that never need a sync pass: engine metadata, Obsidian config and trash, temp
+ * files, and `node_modules`, which never syncs (REQ-3.0.7), so an install doesn't start passes.
+ */
 export function isIgnoredChange(relativePath: string): boolean {
   const parts = relativePath.replace(/\\/g, "/").split("/");
   return (
     parts.some(
       (part) =>
-        part === ".project-docs" || part === ".obsidian" || part === ".trash" || part === ".git",
+        part === ".project-docs" ||
+        part === ".obsidian" ||
+        part === ".trash" ||
+        part === ".git" ||
+        part === "node_modules",
     ) || parts.some((part) => part.includes(".pd-tmp-"))
   );
 }

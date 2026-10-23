@@ -28,6 +28,11 @@ export interface LinkSettingsRecord {
   readonly keepLinksAsWritten: boolean;
   readonly allowLinksOutsideProjectFolder: boolean;
   readonly advancedUriDeepLinks: boolean;
+  /**
+   * Paths, in `.gitignore` syntax and relative to the docs folder, that sync although git ignores
+   * them: notes kept out of git on purpose (design decision 20). Never `node_modules`.
+   */
+  readonly syncIgnored: readonly string[];
 }
 
 export const DEFAULT_SETTINGS: LinkSettingsRecord = {
@@ -37,6 +42,7 @@ export const DEFAULT_SETTINGS: LinkSettingsRecord = {
   keepLinksAsWritten: false,
   allowLinksOutsideProjectFolder: false,
   advancedUriDeepLinks: false,
+  syncIgnored: [],
 };
 
 /** `.project-docs.json`. */

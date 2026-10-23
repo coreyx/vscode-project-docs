@@ -65,7 +65,8 @@ export interface Notice {
     | "case-clash"
     | "not-portable"
     | "scan-skipped"
-    | "was-private";
+    | "was-private"
+    | "ignore-rules-unreadable";
   /** Contains no real value. */
   readonly message: string;
   readonly reasons?: readonly string[];

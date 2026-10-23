@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { openProject, type Project } from "../../src/engine/index.js";
 import {
   DEFAULT_SETTINGS,
+  type LinkSettingsRecord,
   committedRecord,
   linkNotePathFor,
   localRecord,
@@ -14,6 +15,8 @@ import {
 
 export interface LinkedProject {
   readonly root: string;
+  /** The repo's root folder. */
+  readonly repo: string;
   readonly docs: string;
   readonly vaultFolder: string;
   readonly stateRoot: string;
@@ -21,33 +24,46 @@ export interface LinkedProject {
   cleanup(): Promise<void>;
 }
 
-export async function linkedProject(base?: string): Promise<LinkedProject> {
+/** How to link: the docs folder (`""` for the repo root) and settings to change from the defaults. */
+export interface LinkOptions {
+  readonly docsFolder?: string;
+  readonly settings?: Partial<LinkSettingsRecord>;
+}
+
+export async function linkedProject(
+  base?: string,
+  options: LinkOptions = {},
+): Promise<LinkedProject> {
+  const docsFolder = options.docsFolder ?? "docs";
+  const settings = { ...DEFAULT_SETTINGS, ...options.settings };
   const root = await mkdtemp(path.join(base ?? tmpdir(), "pd-sched-"));
   const repo = path.join(root, "repo");
   const vaultRoot = path.join(root, "vault");
   const vaultFolder = path.join(vaultRoot, "Projects", "repo");
   const stateRoot = path.join(root, "state");
-  await mkdir(path.join(repo, "docs"), { recursive: true });
+  const docs = path.join(repo, ...docsFolder.split("/").filter(Boolean));
+  await mkdir(docs, { recursive: true });
   await mkdir(vaultFolder, { recursive: true });
   const projectId = newProjectId();
   await writeLink(
     repo,
     committedRecord({
       projectId,
-      docsFolder: "docs",
+      docsFolder,
       vaultFolder: "Projects/repo",
-      settings: DEFAULT_SETTINGS,
+      settings,
     }),
     localRecord({
       projectId,
       vaultRoot,
       vaultFolderPath: vaultFolder,
-      linkNotePath: linkNotePathFor(vaultFolder, DEFAULT_SETTINGS.folderNotePattern),
+      linkNotePath: linkNotePathFor(vaultFolder, settings.folderNotePattern),
     }),
   );
   return {
     root,
-    docs: path.join(repo, "docs"),
+    repo,
+    docs,
     vaultFolder,
     stateRoot,
     async open() {

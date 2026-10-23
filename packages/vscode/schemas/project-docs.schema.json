@@ -59,6 +59,14 @@
           "type": "boolean",
           "default": false,
           "description": "Open the project in Obsidian through the Advanced URI plugin. Turning it on adds a deep link here and `uid: <project id>` to the project folder's folder note, which anchors the link to the folder however its contents change; Project Docs lists both changes and makes them only once you confirm. If you add the uid by hand, put it in the folder note too."
+        },
+        "syncIgnored": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Paths that sync although git ignores them, in .gitignore syntax and relative to the docs folder, such as /scratch/ for notes kept out of git but wanted in Obsidian. A leading slash anchors a pattern to the docs folder. node_modules never syncs."
         }
       },
       "additionalProperties": false

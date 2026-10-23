@@ -47,7 +47,12 @@ function settingsFrom(value: unknown, problems: string[]): LinkSettingsRecord {
   for (const [name, fallback] of Object.entries(DEFAULT_SETTINGS)) {
     const given = input[name];
     if (given === undefined) continue;
-    if (typeof given !== typeof fallback) {
+    if (Array.isArray(fallback)) {
+      if (!Array.isArray(given) || given.some((item) => typeof item !== "string")) {
+        problems.push(`settings.${name} must be a list of patterns`);
+        continue;
+      }
+    } else if (typeof given !== typeof fallback) {
       problems.push(`settings.${name} must be a ${typeof fallback}`);
       continue;
     }
@@ -167,6 +172,13 @@ export const COMMITTED_SCHEMA = {
           default: false,
           description:
             "Open the project in Obsidian through the Advanced URI plugin. Turning it on adds a deep link here and `uid: <project id>` to the project folder's folder note, which anchors the link to the folder however its contents change; Project Docs lists both changes and makes them only once you confirm. If you add the uid by hand, put it in the folder note too.",
+        },
+        syncIgnored: {
+          type: "array",
+          items: { type: "string" },
+          default: [],
+          description:
+            "Paths that sync although git ignores them, in .gitignore syntax and relative to the docs folder, such as /scratch/ for notes kept out of git but wanted in Obsidian. A leading slash anchors a pattern to the docs folder. node_modules never syncs.",
         },
       },
       additionalProperties: false,
