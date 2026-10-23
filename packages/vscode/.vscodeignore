@@ -1,0 +1,13 @@
+# Only what the installed extension uses: the bundled code, the bundled PRIVATE.md scripts, the
+# walkthrough's media, the JSON schema, the README, the license and the manifest. The build
+# bundles every dependency into dist/, so node_modules is left out too.
+src/**
+test/**
+out/**
+.vscode-test/**
+node_modules/**
+build.mjs
+tsconfig.json
+*.tsbuildinfo
+dist/**/*.map
+.vscode-test.mjs
