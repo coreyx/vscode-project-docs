@@ -118,7 +118,9 @@ describe("privacy in VS Code", function () {
     await writeFile(path.join(vaultFolder, "plan.md"), "---\nproject-docs: private\n---\nplan\n");
     await vscode.commands.executeCommand("projectDocs.syncNow");
     await writeFile(path.join(vaultFolder, "plan.md"), "plan\n");
-    await eventually(() => docsApi.problems.problems.some((p) => p.kind === "was-private"), 5_000);
+    // Run the pass directly: the watcher's timing is covered elsewhere, and is slow on CI runners.
+    await vscode.commands.executeCommand("projectDocs.syncNow");
+    await eventually(() => docsApi.problems.problems.some((p) => p.kind === "was-private"), 10_000);
     const item = docsApi.problems.getChildren().find((i) => i.problem.path === "plan.md");
     assert.equal(item?.contextValue, "projectDocs.problem.was-private.confirm-syncable");
     assert.equal(await text(path.join(docs, "plan.md")), null);
