@@ -9,10 +9,10 @@ Use it when VS Code isn't running, such as when a coding agent is working in the
 Requires Node 22 or newer.
 
 ```sh
-npm install --global @specdevship/project-docs-cli
+pnpm add --global @specdevship/project-docs-cli
 ```
 
-Or run it without installing: `npx @specdevship/project-docs-cli status`.
+Or with npm: `npm install --global @specdevship/project-docs-cli`. To run it without installing: `pnpm dlx @specdevship/project-docs-cli status` or `npx @specdevship/project-docs-cli status`.
 
 The repo must already be linked; linking is done once, from VS Code, with **Project Docs: Link to Obsidian**.
 

@@ -18,14 +18,16 @@ The user guide is the [extension's README](packages/vscode/README.md); the comma
 
 ## Development
 
-Requires Node 22 or newer.
+Requires Node 22 or newer and [pnpm](https://pnpm.io). The pnpm version is pinned in `package.json`, and pnpm switches to it on its own.
 
 ```sh
-npm install
-npm run build
-npm test
-npm run coverage
+pnpm install
+pnpm run build
+pnpm test
+pnpm run coverage
 ```
+
+`pnpm --filter project-docs run test:vscode` runs the extension's integration tests in VS Code, and `pnpm --filter project-docs run package` builds a VSIX in `packages/vscode`.
 
 ## License
 

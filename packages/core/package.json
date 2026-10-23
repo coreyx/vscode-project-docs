@@ -73,7 +73,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "mdast-util-from-markdown": "^2.1.0",
@@ -84,5 +84,8 @@
     "node-diff3": "^3.2.1",
     "unist-util-visit": "^5.1.0",
     "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/mdast": "^4.0.4"
   }
 }

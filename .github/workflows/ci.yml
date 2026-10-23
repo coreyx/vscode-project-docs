@@ -28,18 +28,20 @@ jobs:
         node: [22, 24]
     steps:
       - uses: actions/checkout@v7
+      # Installs the pnpm version pinned in package.json's packageManager.
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run format
-      - run: npm run typecheck
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run format
+      - run: pnpm run typecheck
+      - run: pnpm run build
       # The CLI is a single bundled file; make sure it actually starts.
       - run: node packages/cli/dist/project-docs.mjs --version
-      - run: npm run coverage
+      - run: pnpm run coverage
       - name: Upload coverage report
         if: always() && matrix.node == 22
         uses: actions/upload-artifact@v7
@@ -59,19 +61,20 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       # VS Code needs a display; Linux runners have none, so run it under a virtual one.
       - name: Run extension tests (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a npm run test:vscode --workspace project-docs --if-present
+        run: xvfb-run -a pnpm --filter project-docs run test:vscode
       - name: Run extension tests
         if: runner.os != 'Linux'
-        run: npm run test:vscode --workspace project-docs --if-present
+        run: pnpm --filter project-docs run test:vscode
 
   wsl:
     name: core tests inside WSL
@@ -107,6 +110,8 @@ jobs:
         run: |
           mkdir -p "$PROJECT_DOCS_TEST_WINDOWS_DIR"
           cd ~/project-docs
-          npm ci
-          npm run build
-          npm test
+          # The pnpm version pinned in package.json's packageManager, through the npm Node ships.
+          npm install --global "$(node -p "require('./package.json').packageManager")"
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm test

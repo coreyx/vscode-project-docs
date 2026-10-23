@@ -17,7 +17,7 @@
     "build": "node build.mjs"
   },
   "dependencies": {
-    "@specdevship/project-docs-core": "*",
+    "@specdevship/project-docs-core": "workspace:*",
     "trash": "^10.1.1"
   }
 }

@@ -4,16 +4,12 @@
   "description": "Project Docs: keep a repo's docs folder and an Obsidian vault folder in sync.",
   "license": "MIT",
   "type": "module",
-  "workspaces": [
-    "packages/core",
-    "packages/cli",
-    "packages/vscode"
-  ],
+  "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "pnpm -r --if-present run build",
     "typecheck": "tsc -p packages/core && tsc -p packages/cli && tsc -p packages/vscode",
     "lint": "eslint .",
     "format": "prettier --check .",
