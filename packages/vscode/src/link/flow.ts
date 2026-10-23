@@ -1,11 +1,19 @@
 /**
- * The "Link to Obsidian" flow (REQ-1.0.1): at most three questions, each with a usable default,
- * then the link is created. The questions are asked through a `Prompter`, so the flow runs the
- * same with VS Code's prompts or a test's scripted answers.
+ * The "Link to Obsidian" flow (REQ-1.0.1): three questions, each with a usable default, then the
+ * link is created. A fourth is asked only when the docs folder holds folders of notes that git
+ * ignores, to keep syncing the ones the user picks (REQ-1.0.6). The questions are asked through a
+ * `Prompter`, so the flow runs the same with VS Code's prompts or a test's scripted answers.
  */
 import { access } from "node:fs/promises";
 import * as path from "node:path";
-import { readLink, type CommittedLink, type WslContext } from "@specdevship/project-docs-core";
+import {
+  DEFAULT_SETTINGS,
+  findIgnoredNoteFolders,
+  readLink,
+  syncIgnoredPattern,
+  type CommittedLink,
+  type WslContext,
+} from "@specdevship/project-docs-core";
 import { LinkError, createLink } from "./linker.js";
 import type { KnownVault } from "./vaults.js";
 
@@ -17,6 +25,11 @@ export interface Prompter {
     defaultPath: string | undefined,
   ): Promise<string | undefined>;
   vaultFolder(defaultValue: string): Promise<string | undefined>;
+  /**
+   * Which of the docs folder's git-ignored folders of notes to keep syncing, with none picked to
+   * begin with. Asked only when there are any; a prompter without it keeps none of them.
+   */
+  ignoredFolders?(folders: readonly string[]): Promise<readonly string[] | undefined>;
 }
 
 /** What the flow needs from its surroundings. */
@@ -55,6 +68,17 @@ export async function runLinkFlow(repoRoot: string, ctx: FlowContext): Promise<F
   const docsFolder = relink ? relink.docsFolder : await ctx.prompter.docsFolder(docsDefault);
   if (docsFolder === undefined) return { outcome: "cancelled" };
 
+  // A re-link keeps the settings already recorded, so it asks nothing about them.
+  let syncIgnored: string[] = [];
+  if (!relink && ctx.prompter.ignoredFolders) {
+    const folders = await findIgnoredNoteFolders(repoRoot, docsFolder);
+    if (folders.length > 0) {
+      const kept = await ctx.prompter.ignoredFolders(folders);
+      if (kept === undefined) return { outcome: "cancelled" };
+      syncIgnored = kept.map((folder) => syncIgnoredPattern(`${folder}/`));
+    }
+  }
+
   const vaults = await ctx.knownVaults();
   const defaultVault = ctx.lastVault ?? vaults[0]?.path;
   const vaultRoot = await ctx.prompter.vault(vaults, defaultVault);
@@ -72,7 +96,9 @@ export async function runLinkFlow(repoRoot: string, ctx: FlowContext): Promise<F
         vaultRoot,
         vaultFolder,
         projectId: relink?.projectId,
-        settings: relink?.settings,
+        settings:
+          relink?.settings ??
+          (syncIgnored.length > 0 ? { ...DEFAULT_SETTINGS, syncIgnored } : undefined),
       },
       ctx.wsl,
     );

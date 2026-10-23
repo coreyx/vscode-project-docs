@@ -201,3 +201,46 @@ export async function loadIgnoreRules(
   }
   return { rules: matcher(levels, docs, exceptionRules, exceptions) };
 }
+
+/** True when a folder holds a Markdown file somewhere inside, without following symbolic links. */
+async function holdsMarkdown(folder: string): Promise<boolean> {
+  const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) return true;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory() && !NOT_SEARCHED.has(entry.name)) {
+      if (await holdsMarkdown(path.join(folder, entry.name))) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * The folders inside the docs folder that git ignores and that hold notes, other than
+ * `node_modules`, by key, for the question asked when linking (REQ-1.0.6). Only the outermost
+ * ignored folder of each branch is listed, since bringing it back brings back what's inside.
+ * Returns none when the rules can't be read: the first sync then stops and reports the file.
+ */
+export async function findIgnoredNoteFolders(
+  repoRoot: string,
+  docsFolder: string,
+): Promise<string[]> {
+  const loaded = await loadIgnoreRules(repoRoot, docsFolder, []);
+  if ("unreadable" in loaded) return [];
+  const { rules } = loaded;
+  const docs = path.join(repoRoot, ...docsFolder.split("/").filter(Boolean));
+  const found: string[] = [];
+  const walk = async (key: string): Promise<void> => {
+    const folder = path.join(docs, ...key.split("/").filter(Boolean));
+    const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      if (!entry.isDirectory() || NOT_SEARCHED.has(entry.name)) continue;
+      const child = join(key, entry.name);
+      if (!rules.gitIgnores(child, true)) await walk(child);
+      else if (await holdsMarkdown(path.join(folder, entry.name))) found.push(child);
+    }
+  };
+  await walk("");
+  return found;
+}

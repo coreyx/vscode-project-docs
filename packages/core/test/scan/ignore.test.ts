@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { inNodeModules, loadIgnoreRules, type IgnoreRules } from "../../src/scan/index.js";
+import {
+  findIgnoredNoteFolders,
+  inNodeModules,
+  loadIgnoreRules,
+  type IgnoreRules,
+} from "../../src/scan/index.js";
 
 let repo: string;
 beforeEach(async () => {
@@ -121,5 +126,25 @@ describe("loadIgnoreRules (REQ-3.0.7, design decision 20)", () => {
     const loaded = await loadIgnoreRules(repo, "docs", []);
     expect(loaded).toMatchObject({ unreadable: { file: "docs/sub/.gitignore" } });
     expect("unreadable" in loaded && loaded.unreadable.message).toContain("isn't syncing");
+  });
+});
+
+describe("findIgnoredNoteFolders (REQ-1.0.6)", () => {
+  it("lists the outermost ignored folders that hold notes, but not node_modules", async () => {
+    await files({
+      ".gitignore": "scratch/\nbuild/\nprivate-drafts/\n",
+      "docs/scratch/deep/a.md": "a\n",
+      "docs/build/out.js": "built();\n",
+      "docs/notes/guide.md": "guide\n",
+      "docs/notes/private-drafts/b.md": "b\n",
+      "docs/node_modules/pkg/README.md": "pkg\n",
+    });
+    expect(await findIgnoredNoteFolders(repo, "docs")).toEqual(["notes/private-drafts", "scratch"]);
+  });
+
+  it("finds none when the rules can't be read", async () => {
+    await files({ "docs/scratch/a.md": "a\n" });
+    await mkdir(path.join(repo, ".gitignore"));
+    expect(await findIgnoredNoteFolders(repo, "docs")).toEqual([]);
   });
 });

@@ -50,6 +50,19 @@ export const vscodePrompter: Prompter = {
     });
     return chosen?.[0]?.fsPath;
   },
+  async ignoredFolders(folders) {
+    const picked = await vscode.window.showQuickPick(
+      folders.map((folder) => ({ label: `${folder}/`, folder })),
+      {
+        title: "Link to Obsidian: notes git ignores",
+        placeHolder:
+          "These folders hold notes that git ignores, so they won't sync. Pick any to sync anyway, or press Enter for none.",
+        canPickMany: true,
+        ignoreFocusOut: true,
+      },
+    );
+    return picked?.map((item) => item.folder);
+  },
   async vaultFolder(defaultValue) {
     return vscode.window.showInputBox({
       title: "Link to Obsidian (3/3): folder in the vault",

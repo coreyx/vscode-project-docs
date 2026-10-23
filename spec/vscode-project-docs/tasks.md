@@ -393,7 +393,7 @@ A change agreed before the release: files git ignores, and anything in `node_mod
     5. Read `.project-docs/ignored-choices.json` each pass and carry out each choice as the matching VS Code action does. Add its format to the core's `/status` entry point, so the plugin can write it. The plugin's buttons are TASK-17 of the plugin's own spec, built against the core release that has this.
     6. Unit tests for the planner (a folder and a single file becoming ignored, one notice per folder, an edit on each side while ignored, then kept or stopped, and each choice from the file, twice), and an integration test for both actions in VS Code.
 
-- [ ] **TASK-38: List git-ignored folders of notes when linking**
+- [x] **TASK-38: List git-ignored folders of notes when linking**
   - **Associated Acceptance Criteria**: `1.6`
   - **Concrete Steps**:
     1. During "Link to Obsidian", after the docs folder is chosen, find the git-ignored folders inside it that contain Markdown, other than `node_modules`, with the TASK-36 loader.

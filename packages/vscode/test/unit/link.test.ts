@@ -34,6 +34,8 @@ function acceptingPrompter(
     docsFolder: async (d) => (asked.push(`docs:${d}`), overrides.docsFolder ?? d),
     vault: async (_v, d) => (asked.push(`vault:${d ?? ""}`), overrides.vault ?? d),
     vaultFolder: async (d) => (asked.push(`folder:${d}`), overrides.vaultFolder ?? d),
+    // Keeps none of the ignored folders, as pressing Enter does.
+    ignoredFolders: async (folders) => (asked.push(`ignored:${folders.join(",")}`), []),
   };
 }
 
@@ -124,6 +126,40 @@ describe("the link flow (REQ-1.1)", () => {
     expect(after.state === "linked" && after.committed.projectId).toBe(
       before.state === "linked" && before.committed.projectId,
     );
+  });
+});
+
+describe("folders of notes git ignores (REQ-1.0.6, AC 1.6)", () => {
+  beforeEach(async () => {
+    await writeFile(path.join(repo, ".gitignore"), "scratch/\n");
+    await mkdir(path.join(repo, "docs", "scratch"), { recursive: true });
+    await writeFile(path.join(repo, "docs", "scratch", "idea.md"), "idea\n");
+  });
+
+  it("are listed after the docs folder, and the ones picked are kept syncing", async () => {
+    const asked: string[] = [];
+    const prompter: Prompter = {
+      ...acceptingPrompter(asked),
+      ignoredFolders: async (folders) => (asked.push(`ignored:${folders.join(",")}`), ["scratch"]),
+    };
+    await runLinkFlow(repo, context(prompter).ctx);
+    expect(asked[1]).toBe("ignored:scratch");
+    expect(await readLink(repo)).toMatchObject({
+      committed: { settings: { syncIgnored: ["/scratch/"] } },
+    });
+  });
+
+  it("are left out when none is picked", async () => {
+    const asked: string[] = [];
+    await runLinkFlow(repo, context(acceptingPrompter(asked)).ctx);
+    expect(asked).toHaveLength(4);
+    expect(await readLink(repo)).toMatchObject({ committed: { settings: { syncIgnored: [] } } });
+  });
+
+  it("cancel the link when the question is cancelled", async () => {
+    const prompter: Prompter = { ...acceptingPrompter([]), ignoredFolders: async () => undefined };
+    expect(await runLinkFlow(repo, context(prompter).ctx)).toEqual({ outcome: "cancelled" });
+    expect((await readLink(repo)).state).toBe("unlinked");
   });
 });
 

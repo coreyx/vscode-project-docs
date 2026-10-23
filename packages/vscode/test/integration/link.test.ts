@@ -59,6 +59,34 @@ describe("linking", () => {
     assert.equal(synced.replace(/\r\n/g, "\n"), "# Guide\n");
   });
 
+  for (const keep of [true, false]) {
+    const what = keep ? "syncs a git-ignored folder of notes picked" : "leaves out one not picked";
+    it(`${what} when linking (AC 1.6)`, async () => {
+      await writeFile(path.join(repo, ".gitignore"), "scratch/\n");
+      await mkdir(path.join(repo, "docs", "scratch"), { recursive: true });
+      await writeFile(path.join(repo, "docs", "scratch", "idea.md"), "idea\n");
+      await writeFile(path.join(repo, "docs", "guide.md"), "# Guide\n");
+      const offered: string[] = [];
+      const prompter: Prompter = {
+        docsFolder: async (value) => value,
+        vault: async () => vault,
+        vaultFolder: async (value) => value,
+        ignoredFolders: async (folders) => (offered.push(...folders), keep ? [...folders] : []),
+      };
+      const docs = await api();
+      await docs.link(repo, prompter);
+      assert.deepEqual(offered, ["scratch"]);
+      const read = (key: string) =>
+        readFile(path.join(vault, "Projects", "repo", ...key.split("/")), "utf8").then(
+          (t) => t.replace(/\r\n/g, "\n"),
+          () => null,
+        );
+      assert.equal(await read("guide.md"), "# Guide\n");
+      assert.equal(await read("scratch/idea.md"), keep ? "idea\n" : null);
+      await docs.unlink(repo);
+    });
+  }
+
   it("unlinks, leaving every file in place (REQ-1.5)", async () => {
     const prompter: Prompter = {
       docsFolder: async (value) => value,
