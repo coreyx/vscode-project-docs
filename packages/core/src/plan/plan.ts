@@ -21,6 +21,7 @@ import {
   markdownHash,
   toLf,
   type LineEnding,
+  type Snapshot,
   type SnapshotEntry,
 } from "../scan/index.js";
 import type { Side } from "../sidefs/index.js";
@@ -54,15 +55,34 @@ export function isWaitingForConfirmation(entry: IndexEntry | undefined): boolean
 
 const other = (side: Side): Side => (side === "repo" ? "vault" : "repo");
 
-/** The line ending to write to a side: what the file there uses, what was recorded, or the side's default. */
+/**
+ * The line ending to write to a side: what the file there uses, what was recorded for it, or, for
+ * a new file, the side's own convention (design decision 4).
+ */
 function lineEndingFor(
   existing: SnapshotEntry | undefined,
   recorded: LineEnding | undefined,
-  traits: SideTraits,
+  sideDefault: LineEnding,
 ): LineEnding {
   if (existing && existing.lineEnding !== "none") return existing.lineEnding;
   if (recorded && recorded !== "none") return recorded;
-  return traits.isWindowsFs ? "crlf" : "lf";
+  return sideDefault;
+}
+
+/**
+ * The line ending most of a side's Markdown files use, LF when it has none or on a tie. It follows
+ * the files rather than the operating system, so a Windows checkout of an LF repo gets LF files,
+ * one made with `core.autocrlf` gets CRLF ones, and the vault gets LF as Obsidian writes it.
+ */
+export function majorityLineEnding(snapshot: Snapshot): LineEnding {
+  let crlf = 0;
+  let lf = 0;
+  for (const entry of snapshot.entries.values()) {
+    if (entry.kind !== "markdown") continue;
+    if (entry.lineEnding === "crlf") crlf++;
+    else if (entry.lineEnding === "lf") lf++;
+  }
+  return crlf > lf ? "crlf" : "lf";
 }
 
 function reasonsOf(reasons: readonly GuardReason[]): string[] {
@@ -97,7 +117,15 @@ class Planner {
     }
   >();
 
-  constructor(private readonly input: PlanInput) {}
+  /** Each side's line ending for new files, worked out once per pass. */
+  private readonly sideDefaults: Record<Side, LineEnding>;
+
+  constructor(private readonly input: PlanInput) {
+    this.sideDefaults = {
+      repo: majorityLineEnding(input.repo),
+      vault: majorityLineEnding(input.vault),
+    };
+  }
 
   private traits(side: Side): SideTraits {
     return side === "repo" ? this.input.repoTraits : this.input.vaultTraits;
@@ -416,7 +444,7 @@ class Planner {
       return;
     }
     const recorded = to === "repo" ? base?.repoLineEnding : base?.vaultLineEnding;
-    const targetLineEnding = lineEndingFor(target, recorded, this.traits(to));
+    const targetLineEnding = lineEndingFor(target, recorded, this.sideDefaults[to]);
     const entry =
       from === "repo"
         ? this.synced(key, file.kind, file.hash, file.lineEnding, targetLineEnding)
@@ -453,8 +481,8 @@ class Planner {
     const lf = toLf(text);
     const hash = markdownHash(lf);
     const { repo, vault } = this.files(key);
-    const repoLineEnding = lineEndingFor(repo, base?.repoLineEnding, this.input.repoTraits);
-    const vaultLineEnding = lineEndingFor(vault, base?.vaultLineEnding, this.input.vaultTraits);
+    const repoLineEnding = lineEndingFor(repo, base?.repoLineEnding, this.sideDefaults.repo);
+    const vaultLineEnding = lineEndingFor(vault, base?.vaultLineEnding, this.sideDefaults.vault);
     this.actions.push({
       type: "writeBoth",
       key,
@@ -491,7 +519,7 @@ class Planner {
       repoHash: repo.hash,
       vaultHash: vault.hash,
       baseHash: base?.baseHash || null,
-      vaultLineEnding: lineEndingFor(vault, base?.vaultLineEnding, this.input.vaultTraits),
+      vaultLineEnding: lineEndingFor(vault, base?.vaultLineEnding, this.sideDefaults.vault),
       update: { key, entry },
     });
     this.notices.push({

@@ -328,7 +328,7 @@ The changes agreed after the first review: a safeguard for notes that stop being
     5. Make the CLI report the notice, with no way to confirm it.
     6. Unit tests for the planner cases (marker removed, moved out unmarked, edited and moved, a matching and a stale confirmation), and an integration test for the VS Code confirmation.
 
-- [ ] **TASK-33: Give new files the line endings their side already uses**
+- [x] **TASK-33: Give new files the line endings their side already uses**
   - **Associated Acceptance Criteria**: `3.2`, `3.5`
   - **Concrete Steps**:
     1. Change the planner's default for a new file to the majority line ending of the target side's Markdown files in the snapshot, LF when there are none or on a tie (design decision 4).

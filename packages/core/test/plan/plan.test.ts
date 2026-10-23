@@ -92,13 +92,63 @@ describe("one side changed", () => {
     expect(copy).toMatchObject({ type: "copy", targetLineEnding: "lf" });
     expect(copy?.update.entry).toMatchObject({ repoLineEnding: "crlf", vaultLineEnding: "lf" });
   });
+});
 
-  it("uses the target's default line ending for new files", async () => {
-    const w = world({
-      repo: { "a.md": "x\ny\n" },
-      vaultTraits: { isWindowsFs: true, caseInsensitive: true },
+describe("line endings of new files (REQ-3.0.5, REQ-3.5, design decision 4)", () => {
+  const windows = { isWindowsFs: true, caseInsensitive: true };
+  const target = async (w: ReturnType<typeof world>, key: string) =>
+    (await plan(input(w))).actions.find((a) => a.type === "copy" && a.key === key);
+
+  it("gives a new repo file LF when the repo's docs are LF, even on a Windows filesystem", async () => {
+    const w = world({ repoTraits: windows, vaultTraits: windows });
+    synced(w, "old.md", "x\ny\n");
+    w.vault["new.md"] = "a\r\nb\r\n";
+    expect(await target(w, "new.md")).toMatchObject({ targetLineEnding: "lf" });
+  });
+
+  it("gives a new repo file CRLF when most of the repo's docs are CRLF", async () => {
+    const w = world({ repoTraits: windows });
+    synced(w, "one.md", "x\r\ny\r\n");
+    synced(w, "two.md", "x\r\ny\r\n");
+    synced(w, "three.md", "x\ny\n");
+    w.vault["new.md"] = "a\nb\n";
+    expect(await target(w, "new.md")).toMatchObject({ targetLineEnding: "crlf" });
+  });
+
+  it("gives LF to a side with no Markdown files, or an even split", async () => {
+    const empty = world({ repo: { "a.md": "x\r\ny\r\n" }, vaultTraits: windows });
+    expect(await target(empty, "a.md")).toMatchObject({ targetLineEnding: "lf" });
+    const tie = world({
+      repo: { "a.md": "x\ny\n", "b.md": "x\r\ny\r\n" },
+      vault: { "new.md": "n\n" },
     });
-    expect((await plan(input(w))).actions[0]).toMatchObject({ targetLineEnding: "crlf" });
+    tie.vault["c.md"] = "x\r\ny\r\n";
+    expect(await target(tie, "new.md")).toMatchObject({ targetLineEnding: "lf" });
+  });
+
+  it("gives a new vault file LF on every filesystem, as Obsidian writes notes", async () => {
+    for (const vaultTraits of [windows, { isWindowsFs: false, caseInsensitive: false }]) {
+      const w = world({ repo: { "a.md": "x\r\ny\r\n" }, repoTraits: windows, vaultTraits });
+      expect(await target(w, "a.md")).toMatchObject({ targetLineEnding: "lf" });
+    }
+  });
+
+  it("ignores files with no line breaks when counting", async () => {
+    const w = world({
+      repo: { "one-line.md": "x", "b.md": "x\r\ny\r\n" },
+      vault: { "new.md": "n\n" },
+    });
+    expect(await target(w, "new.md")).toMatchObject({ targetLineEnding: "crlf" });
+  });
+
+  it("keeps an existing file's own line endings on each side (REQ-3.2)", async () => {
+    const w = world();
+    synced(w, "a.md", "x\ny\n");
+    w.repo["a.md"] = "x\r\ny\r\n";
+    w.index["a.md"] = { ...w.index["a.md"]!, repoLineEnding: "crlf", vaultLineEnding: "lf" };
+    w.repo["a.md"] = "x\r\nz\r\n";
+    w.repo["b.md"] = "x\r\ny\r\n";
+    expect(await target(w, "a.md")).toMatchObject({ targetLineEnding: "lf" });
   });
 });
 

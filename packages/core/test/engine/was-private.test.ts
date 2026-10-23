@@ -22,12 +22,7 @@ afterEach(async () => {
   await linked.cleanup();
 });
 
-// Line endings of new files are TASK-33's business, so text is compared LF-normalized here.
-const read = (file: string) =>
-  readFile(file, "utf8").then(
-    (text) => text.replace(/\r\n/g, "\n"),
-    () => null,
-  );
+const read = (file: string) => readFile(file, "utf8").catch(() => null);
 const marked = "---\nproject-docs: private\n---\nplan\n";
 const unmarked = "plan\n";
 

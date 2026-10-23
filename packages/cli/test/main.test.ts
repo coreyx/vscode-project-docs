@@ -35,8 +35,6 @@ const options = (): OpenOptions => ({
   },
   stateRoot,
 });
-/** A new file on a Windows filesystem gets CRLF line endings (design decision 4). */
-const EOL = process.platform === "win32" ? "\r\n" : "\n";
 const io = (cwd = repo): Io => ({ out: (t) => out.push(t), err: (t) => err.push(t), cwd });
 const run = (args: string[], cwd?: string) => main(args, io(cwd), options());
 
@@ -114,9 +112,7 @@ describe("sync (REQ-18.1)", () => {
   it("syncs an agent's repo edit to the vault with VS Code closed", async () => {
     await writeFile(path.join(repo, "docs", "plan.md"), "Edited by an agent\n");
     expect(await run(["sync"])).toBe(EXIT.ok);
-    expect(await readFile(path.join(vaultFolder, "plan.md"), "utf8")).toBe(
-      `Edited by an agent${EOL}`,
-    );
+    expect(await readFile(path.join(vaultFolder, "plan.md"), "utf8")).toBe("Edited by an agent\n");
     expect(out[0]).toBe("Synced: 1 change applied.");
   });
 
@@ -142,7 +138,7 @@ describe("sync (REQ-18.1)", () => {
     for (let i = 0; i < 25; i++) await rm(path.join(repo, "docs", `d${i}.md`));
     expect(await run(["sync"])).toBe(EXIT.bulk);
     expect(err.at(-1)).toContain("would delete or overwrite 25 files");
-    expect(await readFile(path.join(vaultFolder, "d0.md"), "utf8")).toBe(`0${EOL}`);
+    expect(await readFile(path.join(vaultFolder, "d0.md"), "utf8")).toBe("0\n");
     expect(await run(["sync", "--yes"])).toBe(EXIT.ok);
     await expect(readFile(path.join(vaultFolder, "d0.md"), "utf8")).rejects.toThrow();
   });
