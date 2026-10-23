@@ -352,7 +352,7 @@ The changes agreed after the first review: a safeguard for notes that stop being
 
 ### Milestone 8: The Obsidian plugin is specified and built against the core
 
-- [ ] **TASK-29: Publish a prerelease of the core**
+- [x] **TASK-29: Publish a prerelease of the core**
   - **Associated Acceptance Criteria**: none (packaging for the plugin)
   - **Concrete Steps**:
     1. Create the `specdevship` npm organization, if it doesn't exist yet. This is a manual step for the maintainer.
