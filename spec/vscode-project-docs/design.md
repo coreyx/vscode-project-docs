@@ -109,7 +109,7 @@ There are three commands over the core. `sync` takes the lock (owner `cli`), sca
 | `PrivateFilesList` | Where attachment sync is on: maintains `.project-docs/private-files.json`, tracking renames and modifications. |
 | `RuleMenu` | File-menu items, a status-bar item and a note-header indicator. Asks for confirmation before un-privating a note. |
 | `StatusReader` | Reads `.project-docs/status.json` for the status bar and for per-note notices. |
-| `DecodedView` | Decoding in **reading view** first (decision 14), with a separate read-only view as the fallback. Either way: a fixed "Decoded: real values shown" header, and a toggle action on Markdown views. It reads PRIVATE.md from the repo path in the link note. |
+| `DecodedView` | A separate read-only view that renders the whole decoded note (decision 14), opened from a toggle action in the note's header, in the same tab. It has a fixed "Decoded: real values shown" header, and reads PRIVATE.md from the repo path in the link note. |
 
 ## Key design decisions
 
@@ -220,15 +220,21 @@ On startup, an existing journal is replayed before any new pass.
 
 ### 14. The decoded view is a virtual document, never a file
 **What:**
-- **VS Code:** `project-docs-decoded:/<path>` documents served by a `TextDocumentContentProvider`. These are read-only by construction. The provider refreshes when the source or PRIVATE.md changes, and the tab title ends with "(Decoded: real values shown)".
-- **Obsidian, reading view first.** While decoded mode is on for a note, a Markdown post-processor uses `ctx.getSectionInfo(el)` to take each rendered section's *source* lines. It decodes them with the core, then re-renders that section from the decoded source with `MarkdownRenderer`. This decodes the source; it doesn't patch rendered text, so text split across elements is decoded correctly.
-  - **Completeness check:** after rendering, the plugin runs the decoder's own placeholder pattern (with the standard's boundary rule) over the view's rendered text, and requires that no mapped placeholder remains. Text such as `notmyhost`, which the boundary rule never decodes, doesn't count. It also checks that every section had source info. Embeds and some plugin-rendered blocks don't.
-  - **If either check fails:** the plugin clears the decoded rendering and opens the fallback view in its place, with a notice saying why. It never leaves a partly decoded page on screen.
-- **Obsidian, fallback.** A separate read-only view that renders the whole decoded source with `MarkdownRenderer`.
-- **A prototype gates the choice.** The plugin's first task is a prototype of the reading-view approach against notes with callouts, embeds, tables, footnotes and code. If the completeness check fails on ordinary notes, the fallback view becomes the default, and REQ-14.0.2's "in reading view" wording is revisited with you then.
+- **VS Code:** `project-docs-decoded:/<path>` documents served by a read-only `FileSystemProvider`. Typing is refused, and the provider refuses every write, so nothing can save one, through the editor or the API. It refreshes when the source or PRIVATE.md changes, and the tab title ends with "(Decoded: real values shown)".
+- **Obsidian: a separate read-only view.** The note header's toggle replaces the note, in the same tab, with a view that renders the note's whole decoded source with `MarkdownRenderer`. Toggling again returns to the note.
+  - **Whole-note rendering** keeps the standard's whole-text rules exactly, and renders footnotes and the rest of Markdown as Obsidian does.
+  - **Frontmatter** is shown as a read-only table of its decoded properties. It's never put in Obsidian's editable properties panel.
+  - **Embedded notes:** the plugin renders them from their own files, decoded with the same mapping.
+  - **Completeness check:** before the page is shown, the plugin runs the decoder's own placeholder pattern (with the standard's boundary rule) over the rendered text, and requires that no mapped placeholder remains. Text such as `notmyhost`, which the boundary rule never decodes, doesn't count. Every embedded section must also have had source lines to decode. If either check fails, the view shows the reason and no decoded content.
 
-Neither app can save a decoded document anywhere. Reading-view decoding changes only the rendered view, never the note's text.
-**Why:** REQ-14.0.2, 14.0.3 and 14.2. A read-only virtual document or rendered view can't be typed into or saved, and never touches disk. Decoding section sources keeps the standard's whole-text rules, and the completeness check enforces fail-closed (REQ-14.0.5).
+Neither app can save a decoded document anywhere, and decoding never changes the note's text.
+
+**Why:** REQ-14.0.2, 14.0.3, 14.2 and 14.3. A read-only virtual document or view can't be typed into or saved, and never touches disk. The completeness check enforces fail-closed (REQ-14.0.5).
+
+**Alternatives considered:** decoding in reading view, section by section, was the first choice. The plugin's prototype measured it on ten notes in Obsidian 1.8.7 and 1.14.4 (`spec/project-docs-plugin/prototype.md` in the plugin repo), and it failed on ordinary notes:
+- **Footnotes:** they depend on the whole note, so one version showed the definitions coded, and the other dropped them while the completeness check still passed.
+- **Properties:** the panel isn't rendered from Markdown, and it's editable.
+- **Embedded notes:** they arrive without source lines.
 
 ### 15. The link note is the folder note, and is never synced
 **What:**
@@ -574,9 +580,7 @@ Exit codes:
 None at this time. Both earlier questions are resolved:
 
 1. **Turning a synced note private:** the repo copy stays, with an offer to move it to the trash (decision 9).
-2. **Obsidian's decoded view:** reading view first, with the separate view as a fallback, decided by a prototype (decision 14).
-
-**One section-level risk carries forward.** Decoding section by section could split a placeholder across a section boundary. That can't actually happen: placeholders contain no line breaks, and sections break only at line boundaries. The prototype should confirm this.
+2. **Obsidian's decoded view:** a separate read-only view that renders the whole decoded note, chosen after the plugin's prototype found reading-view decoding incomplete on ordinary notes (decision 14).
 
 ## Visual design application
 

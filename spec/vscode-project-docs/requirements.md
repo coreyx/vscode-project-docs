@@ -324,7 +324,7 @@ Terms used throughout:
 - **14.0.1 (Ubiquitous)**: The system shall decode exactly as the PRIVATE.md standard specifies, and its decoder shall pass every case in the standard's conformance suite.
 - **14.0.2 (Event-Driven)**: When the user toggles "decoded" on a coded doc in a repo with a valid PRIVATE.md, the system shall show the decoded text:
   - in VS Code, as a read-only decoded editor or preview;
-  - in Obsidian, in reading view.
+  - in Obsidian, as a read-only decoded view of the note, opened from the note's header in the same tab.
 - **14.0.3 (Ubiquitous)**: The system shall never write decoded text to any file, and the decoded view shall be read-only.
 - **14.0.4 (State-Driven)**: While a decoded view is shown, the system shall show a persistent indicator that reads "Decoded: real values shown", in the editor's tab or title and in the status bar. While the coded text is shown in a repo with PRIVATE.md, it shall show "Coded".
 - **14.0.5 (Unwanted Behavior)**: If PRIVATE.md is missing, has no `## Placeholders` table, or lists a placeholder twice, then the system shall show the error and no decoded view, never a partly decoded one.
@@ -333,7 +333,7 @@ Terms used throughout:
 #### Acceptance Criteria
 - **14.1**: The core decoder passes all of the standard's conformance cases byte for byte.
 - **14.2**: Toggling decoded in VS Code shows real values, with the indicator visible. Typing in the decoded view is impossible, and the coded file on disk is unchanged.
-- **14.3**: Toggling decoded in Obsidian reading view shows real values with the indicator, and no file in the vault or repo changes.
+- **14.3**: Toggling decoded in Obsidian shows real values with the indicator, including in footnotes, properties and embedded notes, and no file in the vault or repo changes.
 - **14.4**: Deleting PRIVATE.md and toggling decoded shows the "restore it from wherever you keep it" error and no real values.
 
 ### REQ-15: PRIVATE.md discoverability and setup
