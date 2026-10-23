@@ -359,7 +359,7 @@ The changes agreed after the first review: a safeguard for notes that stop being
     2. Publish `@specdevship/project-docs-core` as a `0.x` prerelease, with type declarations and the exports the plugin needs: rules, records, privatemd, guards (formats only), links (targets).
     3. Document the plugin-facing API in the core's README.
 
-- [ ] **TASK-30: Hand the plugin off to its own spec**
+- [x] **TASK-30: Hand the plugin off to its own spec**
   - **Associated Acceptance Criteria**: `9.1`, `9.3`, `10.1`, `10.3`, `10.6`, `11.3`, `14.3`, `15.3`, `17.2`, `2.10`
   - **Concrete Steps**:
     1. Create a spec folder in `obsidian-project-docs` with a light-tier plan or full-tier documents, as `idea-analysis` decides there. It links back to this spec's `product.md`, `requirements.md` and `design.md` rather than restating them.
