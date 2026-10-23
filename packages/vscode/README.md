@@ -15,6 +15,7 @@ Project Docs is part of SpecDevShip. It has a companion Obsidian plugin.
    - the folder in the vault (`Projects/<repo name>` by default).
 
    If the docs folder holds folders of notes that git ignores, it also asks which of them to sync anyway. None is picked unless you pick it.
+
 3. That's it. The first sync copies whatever each side has that the other doesn't. Where both sides have the same file with different content, the repo's version wins and the vault's version is kept as a conflict for you to merge.
 
 The **Get Started with Project Docs** walkthrough on VS Code's Welcome page covers the same ground, one screen at a time.
