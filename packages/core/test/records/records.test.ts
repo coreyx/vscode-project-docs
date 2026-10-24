@@ -196,6 +196,31 @@ describe("validation", () => {
     }
   });
 
+  it("takes rootFiles as Markdown file names at the repo root (design decision 21)", () => {
+    const base = { format: 1, projectId: newProjectId(), docsFolder: "docs", vaultFolder: "P" };
+    expect(validateCommitted(base)).toMatchObject({
+      settings: { rootFiles: ["README.md", "CHANGELOG.md", "RELEASE_NOTES.md"] },
+    });
+    expect(validateCommitted({ ...base, settings: { rootFiles: [] } })).toMatchObject({
+      settings: { rootFiles: [] },
+    });
+    const problems = (rootFiles: unknown) => {
+      const result = validateCommitted({ ...base, settings: { rootFiles } });
+      return "problems" in result ? result.problems : [];
+    };
+    expect(problems(["CONTRIBUTING.md", "notes.MD"])).toEqual([]);
+    expect(problems(["docs/a.md"])).toEqual([
+      "settings.rootFiles can list only Markdown files at the top of the repo root, such as README.md, not docs/a.md",
+    ]);
+    expect(problems(["LICENSE"])).toHaveLength(1);
+    expect(problems(["a\\b.md"])).toHaveLength(1);
+    expect(problems(["PRIVATE.md", "notes.private.md"])).toEqual([
+      "settings.rootFiles can't list PRIVATE.md, which never syncs",
+      "settings.rootFiles can't list notes.private.md, which never syncs",
+    ]);
+    expect(problems("README.md")).toEqual(["settings.rootFiles must be a list of file names"]);
+  });
+
   it("ships a JSON schema matching the record", () => {
     expect(COMMITTED_SCHEMA.required).toEqual(["format", "projectId", "docsFolder", "vaultFolder"]);
   });

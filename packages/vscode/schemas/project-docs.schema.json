@@ -60,6 +60,14 @@
           "default": false,
           "description": "Open the project in Obsidian through the Advanced URI plugin. Turning it on adds a deep link here and `uid: <project id>` to the project folder's folder note, which anchors the link to the folder however its contents change; Project Docs lists both changes and makes them only once you confirm. If you add the uid by hand, put it in the folder note too."
         },
+        "rootFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["README.md", "CHANGELOG.md", "RELEASE_NOTES.md"],
+          "description": "Markdown files at the top of the repo root that sync beside the docs, at the top of the vault folder, which mirrors the repo. [] turns it off. A link to the repo root syncs them anyway."
+        },
         "syncIgnored": {
           "type": "array",
           "items": {

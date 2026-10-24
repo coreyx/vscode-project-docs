@@ -33,7 +33,7 @@ import {
   COMMITTED_FILE,
   addSyncIgnored,
   readLink,
-  readSyncIgnored,
+  readCurrentSettings,
   syncIgnoredPattern,
   type CommittedLink,
   type LocalLink,
@@ -41,10 +41,11 @@ import {
 import {
   createScope,
   decodeUtf8,
+  liveScope,
   loadIgnoreRules,
   privateFolderKey,
   scan,
-  type Scope,
+  type LiveScope,
   type StatCache,
 } from "../scan/index.js";
 import { createNodeSideFs, vaultTrash, type SideFs, type TrashFn } from "../sidefs/index.js";
@@ -73,7 +74,7 @@ export interface Project {
    * What the link syncs: the docs folder and the listed root files, by key relative to the repo
    * root, which the vault folder mirrors (design decisions 2 and 21).
    */
-  readonly scope: Scope;
+  readonly scope: LiveScope;
   /** The latest PRIVATE.md mapping, refreshed each pass; the logger redacts with it. */
   readonly privateMd: { current: PrivateMdMapping | null };
 }
@@ -157,7 +158,7 @@ export async function openProject(
       caseInsensitive: vaultInsensitive,
       trash: vaultTrash(local.vaultRoot),
     }),
-    scope: createScope(committed.docsFolder, []),
+    scope: liveScope(createScope(committed.docsFolder, committed.settings.rootFiles)),
     store,
     logger: createFileLogger({
       dir: path.join(store.dir, "log"),
@@ -242,11 +243,13 @@ export async function planPass(
   if (problem) problems.push(problem);
   const { index } = await project.store.loadIndex();
   const includeAttachments = committed.settings.syncAttachments;
+  // `syncIgnored` and `rootFiles` are read afresh each pass, since Keep syncing it, a choice made
+  // in Obsidian, a teammate's pull or a hand edit can change them while the project stays open.
+  const current = (await readCurrentSettings(project.repoRoot)) ?? committed.settings;
+  // The scope follows the current rootFiles, for this pass and for the watchers (decision 21).
+  project.scope.update(createScope(committed.docsFolder, current.rootFiles));
   // One set of rules for both scans, so an ignored file drops out of both snapshots (decision 20).
-  // Read afresh each pass: Keep syncing it, a choice made in Obsidian, a teammate's pull or a hand
-  // edit can change it while the project stays open.
-  const syncIgnored = (await readSyncIgnored(project.repoRoot)) ?? committed.settings.syncIgnored;
-  const loaded = await loadIgnoreRules(project.repoRoot, committed.docsFolder, syncIgnored);
+  const loaded = await loadIgnoreRules(project.repoRoot, committed.docsFolder, current.syncIgnored);
   if ("unreadable" in loaded) return { plan: unreadableRulesPlan(loaded.unreadable), problems };
   const ignore = loaded.rules;
   const [repo, vault, privateFiles, vaultFiles, confirmations] = await Promise.all([

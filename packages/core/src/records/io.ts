@@ -265,11 +265,15 @@ export function syncIgnoredPattern(noticePath: string): string {
   return `/${noticePath.replace(/[\\*?[]/g, "\\$&").replace(/ $/, "\\ ")}`;
 }
 
-/** The link's current `syncIgnored` patterns, read from the file; null if it can't be read. */
-export async function readSyncIgnored(repoRoot: string): Promise<readonly string[] | null> {
+/**
+ * The link's current settings, read from the file; null if it can't be read. The engine reads them
+ * each pass, since Keep syncing it, a choice made in Obsidian, a teammate's pull or a hand edit can
+ * change them while the project stays open.
+ */
+export async function readCurrentSettings(repoRoot: string): Promise<LinkSettingsRecord | null> {
   const raw = await readJson(path.join(repoRoot, COMMITTED_FILE));
   const committed = raw === undefined || raw === null ? null : validateCommitted(raw);
-  return committed && !("problems" in committed) ? committed.settings.syncIgnored : null;
+  return committed && !("problems" in committed) ? committed.settings : null;
 }
 
 /**

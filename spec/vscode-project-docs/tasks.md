@@ -414,7 +414,7 @@ A change agreed before the release: the vault folder mirrors the repo root, so t
     5. Update the extension's keys for rule controls, privacy diagnostics and the decoded view to the new key space.
     6. Unit tests for the filter, and integration tests: a `docs/` link mirrored in the vault, links resolving both ways, an out-of-scope vault note left alone and unreported, unlisted root files and other folders left out, and a repo-root link unchanged.
 
-- [ ] **TASK-40: Sync the root files the link lists**
+- [x] **TASK-40: Sync the root files the link lists**
   - **Associated Acceptance Criteria**: `22.1`, `22.3`, `22.5`
   - **Concrete Steps**:
     1. Add `settings.rootFiles` to the committed link file's schema and validation, defaulting to `README.md`, `CHANGELOG.md` and `RELEASE_NOTES.md`, and rejecting anything but bare Markdown file names, the never-synced names and the link files.

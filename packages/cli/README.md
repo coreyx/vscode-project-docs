@@ -47,6 +47,7 @@ Run them anywhere inside a linked repo.
 - It copies each side's changes to the other, follows renames, and merges edits to different parts of the same doc.
 - Overlapping edits become a conflict, reported and left for you to resolve in VS Code. Nothing is overwritten.
 - A file deleted on one side goes to the trash on the other.
+- The vault folder mirrors the repo, so a file has the same path in both: the docs folder, plus the Markdown files at the top of the repo the link lists in `rootFiles` (`README.md`, `CHANGELOG.md` and `RELEASE_NOTES.md` unless changed). Nothing else in the repo syncs.
 - Files git ignores, and anything in `node_modules`, don't sync in either direction, unless the link's `syncIgnored` setting lists them (`node_modules` never syncs). If a `.gitignore` can't be read, `sync` changes nothing and reports the file.
 - Private notes, links to them, and real values from the repo's PRIVATE.md never reach the repo. A change held back for one of these is reported and stays in the vault.
 - A note that was private and lost its marker is reported and stays in the vault until someone confirms it in VS Code or Obsidian. `sync` can't release it, `--yes` included.

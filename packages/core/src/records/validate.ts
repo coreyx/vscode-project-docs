@@ -2,6 +2,7 @@
  * Validation of the link records. The committed record is held to a stricter rule than its shape:
  * it must not contain an absolute path anywhere, because it's published with the repo (REQ-2.1).
  */
+import { isNeverSynced } from "../scan/scan.js";
 import {
   DEFAULT_SETTINGS,
   RECORD_FORMAT,
@@ -41,6 +42,9 @@ function absolutePathsIn(value: unknown, at = "$"): string[] {
   return [];
 }
 
+/** What each list setting holds, for the problem when it isn't a list of strings. */
+const LIST_ITEMS: Record<string, string> = { syncIgnored: "patterns", rootFiles: "file names" };
+
 function settingsFrom(value: unknown, problems: string[]): LinkSettingsRecord {
   const input = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
   const settings: Record<string, unknown> = { ...DEFAULT_SETTINGS };
@@ -49,7 +53,7 @@ function settingsFrom(value: unknown, problems: string[]): LinkSettingsRecord {
     if (given === undefined) continue;
     if (Array.isArray(fallback)) {
       if (!Array.isArray(given) || given.some((item) => typeof item !== "string")) {
-        problems.push(`settings.${name} must be a list of patterns`);
+        problems.push(`settings.${name} must be a list of ${LIST_ITEMS[name] ?? "strings"}`);
         continue;
       }
     } else if (typeof given !== typeof fallback) {
@@ -61,6 +65,15 @@ function settingsFrom(value: unknown, problems: string[]): LinkSettingsRecord {
   const result = settings as unknown as LinkSettingsRecord;
   if (isUnsafeRelativePath(result.privateSubfolder) || result.privateSubfolder.includes("/")) {
     problems.push("settings.privateSubfolder must be a single folder name");
+  }
+  for (const name of result.rootFiles) {
+    if (name.includes("/") || name.includes("\\") || !name.toLowerCase().endsWith(".md")) {
+      problems.push(
+        `settings.rootFiles can list only Markdown files at the top of the repo root, such as README.md, not ${name}`,
+      );
+    } else if (isNeverSynced(name)) {
+      problems.push(`settings.rootFiles can't list ${name}, which never syncs`);
+    }
   }
   if (!result.folderNotePattern.endsWith(".md")) {
     problems.push("settings.folderNotePattern must name a Markdown file");
@@ -172,6 +185,13 @@ export const COMMITTED_SCHEMA = {
           default: false,
           description:
             "Open the project in Obsidian through the Advanced URI plugin. Turning it on adds a deep link here and `uid: <project id>` to the project folder's folder note, which anchors the link to the folder however its contents change; Project Docs lists both changes and makes them only once you confirm. If you add the uid by hand, put it in the folder note too.",
+        },
+        rootFiles: {
+          type: "array",
+          items: { type: "string" },
+          default: DEFAULT_SETTINGS.rootFiles,
+          description:
+            "Markdown files at the top of the repo root that sync beside the docs, at the top of the vault folder, which mirrors the repo. [] turns it off. A link to the repo root syncs them anyway.",
         },
         syncIgnored: {
           type: "array",

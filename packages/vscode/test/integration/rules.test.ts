@@ -108,13 +108,19 @@ describe("sync rules", function () {
     assert.equal(docsApi.rules.statusText, "$(arrow-right) repo-to-vault");
   });
 
-  it("hides the rule for files outside the docs folder", async () => {
-    const file = path.join(repo, "README.md");
-    await writeFile(file, "# Repo\n");
+  it("hides the rule for files the link doesn't sync, and shows it for root files (REQ-22)", async () => {
+    const file = path.join(repo, "CONTRIBUTING.md");
+    await writeFile(file, "# Contributing\n");
     await vscode.window.showTextDocument(vscode.Uri.file(file));
     await eventually(() => docsApi.rules.statusText === undefined, 5_000);
     await vscode.commands.executeCommand("projectDocs.setRule.repoOnly", vscode.Uri.file(file));
-    assert.equal(await readFile(file, "utf8"), "# Repo\n");
+    assert.equal(await readFile(file, "utf8"), "# Contributing\n");
+
+    // README.md is one of the root files that sync by default, so its rule shows.
+    const readme = path.join(repo, "README.md");
+    await writeFile(readme, "# Repo\n");
+    await vscode.window.showTextDocument(vscode.Uri.file(readme));
+    await eventually(() => docsApi.rules.statusText !== undefined, 5_000);
   });
 
   it("offers to trash the repo copy of a note made private, and only that (decision 9)", async () => {

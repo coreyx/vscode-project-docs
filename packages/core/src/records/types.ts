@@ -33,6 +33,11 @@ export interface LinkSettingsRecord {
    * them: notes kept out of git on purpose (design decision 20). Never `node_modules`.
    */
   readonly syncIgnored: readonly string[];
+  /**
+   * Markdown files at the top of the repo root that sync beside the docs (REQ-22.0.2, design
+   * decision 21). `[]` turns it off. A repo-root link syncs them anyway.
+   */
+  readonly rootFiles: readonly string[];
 }
 
 export const DEFAULT_SETTINGS: LinkSettingsRecord = {
@@ -43,6 +48,7 @@ export const DEFAULT_SETTINGS: LinkSettingsRecord = {
   allowLinksOutsideProjectFolder: false,
   advancedUriDeepLinks: false,
   syncIgnored: [],
+  rootFiles: ["README.md", "CHANGELOG.md", "RELEASE_NOTES.md"],
 };
 
 /** `.project-docs.json`. */

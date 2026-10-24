@@ -24,6 +24,21 @@ Project Docs runs on Windows, macOS and Linux, and in WSL with the vault on the 
 
 ## How syncing works
 
+The vault folder mirrors the repo: each file has the same path in both. With `docs` linked, the docs are in the vault folder's `docs/` folder, and the repo's `README.md`, `CHANGELOG.md` and `RELEASE_NOTES.md` are at its top, so links between them work in both apps:
+
+```text
+my-repo/                       Vault/Projects/my-repo/
+  README.md          <->         README.md
+  CHANGELOG.md       <->         CHANGELOG.md
+  RELEASE_NOTES.md   <->         RELEASE_NOTES.md
+  docs/                          docs/
+    guide.md         <->           guide.md
+    private/                       private/        (vault only)
+  src/                           my-repo.md        (the folder note, vault only)
+```
+
+Nothing else in the repo syncs: not `src/`, and not other files at the root unless you list them in `rootFiles`. A note you create in the vault folder outside `docs/`, other than those root files, stays in the vault.
+
 - Edits flow both ways as you save. Renames and moves are followed, not turned into a delete and a copy.
 - A file deleted on one side goes to the trash on the other: the operating system's trash for the repo, Obsidian's `.trash` folder for the vault.
 - Edits to different parts of the same doc are merged automatically. Overlapping edits become a **conflict**: both versions are kept, the file stops syncing, and **Resolve Conflict** opens VS Code's three-way merge editor.
@@ -110,15 +125,16 @@ If you switch the setting on by editing `.project-docs.json`, you get the same l
 
 Settings live in `.project-docs.json`, so everyone who clones the repo shares them. VS Code validates the file and describes each setting on hover.
 
-| Setting                          | Default                    | What it does                                                       |
-| -------------------------------- | -------------------------- | ------------------------------------------------------------------ |
-| `privateSubfolder`               | `private`                  | The vault subfolder whose notes never sync.                        |
-| `folderNotePattern`              | `{folder}/{folderName}.md` | Where the link note goes.                                          |
-| `syncAttachments`                | `false`                    | Also sync files other than Markdown.                               |
-| `keepLinksAsWritten`             | `false`                    | Leave wikilinks as written instead of converting them.             |
-| `allowLinksOutsideProjectFolder` | `false`                    | Let synced notes link to vault notes outside the project folder.   |
-| `advancedUriDeepLinks`           | `false`                    | Open the project through Advanced URI deep links (see above).      |
-| `syncIgnored`                    | `[]`                       | Paths that sync although git ignores them, in `.gitignore` syntax. |
+| Setting                          | Default                    | What it does                                                        |
+| -------------------------------- | -------------------------- | ------------------------------------------------------------------- |
+| `privateSubfolder`               | `private`                  | The subfolder of the docs folder whose notes never sync.            |
+| `folderNotePattern`              | `{folder}/{folderName}.md` | Where the link note goes.                                           |
+| `syncAttachments`                | `false`                    | Also sync files other than Markdown.                                |
+| `keepLinksAsWritten`             | `false`                    | Leave wikilinks as written instead of converting them.              |
+| `allowLinksOutsideProjectFolder` | `false`                    | Let synced notes link to vault notes outside the project folder.    |
+| `advancedUriDeepLinks`           | `false`                    | Open the project through Advanced URI deep links (see above).       |
+| `syncIgnored`                    | `[]`                       | Paths that sync although git ignores them, in `.gitignore` syntax.  |
+| `rootFiles`                      | the three above            | Markdown files at the top of the repo that sync. `[]` turns it off. |
 
 ## For agents and scripts: the link files
 

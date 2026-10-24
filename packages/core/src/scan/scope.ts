@@ -31,6 +31,23 @@ export function createScope(docsFolder: string, rootFiles: readonly string[]): S
   };
 }
 
+/** A scope that can be replaced in place, so everything holding it sees the current settings. */
+export interface LiveScope extends Scope {
+  update(next: Scope): void;
+}
+
+/** A live scope, starting as `initial`. */
+export function liveScope(initial: Scope): LiveScope {
+  let current = initial;
+  return {
+    includes: (key) => current.includes(key),
+    mayContain: (folder) => current.mayContain(folder),
+    update: (next) => {
+      current = next;
+    },
+  };
+}
+
 /** The private subfolder's key: the setting is relative to the docs folder (decision 21). */
 export function privateFolderKey(docsFolder: string, privateSubfolder: string): string {
   return [...docsFolder.split("/"), privateSubfolder].filter(Boolean).join("/");
