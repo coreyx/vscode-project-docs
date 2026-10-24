@@ -400,6 +400,29 @@ A change agreed before the release: files git ignores, and anything in `node_mod
     2. When there are any, ask which to keep syncing in a multi-select question, with none picked, and write the picked ones to `syncIgnored` before the first sync.
     3. Integration tests: a docs folder with a git-ignored `scratch/` of notes, linked with `scratch/` picked and not picked, and one with no ignored folder, which asks nothing extra.
 
+### Milestone 12: The vault mirrors the repo, with its standard root files
+
+A change agreed before the release: the vault folder mirrors the repo root, so the README, changelog and release notes sync beside the docs, and links between them resolve in both apps.
+
+- [ ] **TASK-39: Key files by their path in the repo, and sync only what's in scope**
+  - **Associated Acceptance Criteria**: `22.1`, `22.2`, `22.4`, `22.6`, `22.7`
+  - **Concrete Steps**:
+    1. Make keys relative to the repo root (design decisions 2 and 21): root the repo side at the repo root, with the vault folder mirroring it.
+    2. Add the scope filter: the docs folder's path and the listed root files, applied by key to both scans, pruning folders outside it.
+    3. Make the private subfolder relative to the docs folder, and `syncIgnored` patterns and `now-ignored` notices relative to the repo root.
+    4. Scope the repo watcher to the repo root, dropping events outside the scope.
+    5. Update the extension's keys for rule controls, privacy diagnostics and the decoded view to the new key space.
+    6. Unit tests for the filter, and integration tests: a `docs/` link mirrored in the vault, links resolving both ways, an out-of-scope vault note left alone and unreported, unlisted root files and other folders left out, and a repo-root link unchanged.
+
+- [ ] **TASK-40: Sync the root files the link lists**
+  - **Associated Acceptance Criteria**: `22.1`, `22.3`, `22.5`
+  - **Concrete Steps**:
+    1. Add `settings.rootFiles` to the committed link file's schema and validation, defaulting to `README.md`, `CHANGELOG.md` and `RELEASE_NOTES.md`, and rejecting anything but bare Markdown file names, the never-synced names and the link files.
+    2. Bring the listed files into the scope, so they sync both ways under every existing rule and guard.
+    3. Removing a name takes it out of scope on both sides, so the planner forgets it and deletes nothing.
+    4. Document the setting, and the mirrored layout, in the extension's and the CLI's READMEs.
+    5. Tests: the default files syncing both ways, `[]`, removing a name, and a root file held back for a private marker and for a real value.
+
 ### Milestone 9: Project Docs is verified end to end and published
 
 - [ ] **TASK-31: Verify the release and publish**

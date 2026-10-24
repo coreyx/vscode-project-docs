@@ -33,10 +33,10 @@ Terms used throughout:
 
 | Term | Meaning |
 |---|---|
-| **Link** | The pairing of one repo docs folder with one vault folder. |
-| **Repo side** | The linked docs folder inside the repo. |
-| **Vault side** | The linked folder inside the vault, and everything under it. |
-| **Private subfolder** | The subfolder of the vault side that never syncs (`private/` unless configured otherwise). |
+| **Link** | The pairing of one repo's docs folder, and the root files it lists, with one vault folder. |
+| **Repo side** | The linked docs folder inside the repo, and the root files the link lists (REQ-22). |
+| **Vault side** | The linked folder inside the vault, and everything under it. It mirrors the repo's layout: the docs folder at the same path within it, and the root files at its top. |
+| **Private subfolder** | The subfolder of the vault's copy of the docs folder that never syncs (`private/` unless configured otherwise), so `docs/private/` when the docs folder is `docs`. |
 | **Base** | The last version of a file that both sides agreed on, kept by the sync engine outside both folders. |
 | **Held back** | A change that is kept from reaching the repo, with the reason shown to the user, until the cause is removed. |
 | **Sync rule** | A file's setting for whether and in which direction it syncs. |
@@ -462,3 +462,24 @@ Terms used throughout:
 - **21.1**: The coverage report shows at least 90% line coverage for the core's sync, merge, guard and decoder modules, and meets the general targets elsewhere.
 - **21.2**: The release checklist records a pass for every acceptance criterion before publishing.
 - **21.3**: Opening the extension in vscode.dev shows a message that it needs desktop VS Code.
+
+### REQ-22: The vault mirrors the repo, with its standard root files
+
+**User Story**: As a developer whose docs live in a subfolder, I want the repo's README, changelog and release notes in Obsidian beside the docs, with links between them working, so that I can read and edit them in one place.
+
+**Component**: core, extension, plugin
+
+- **22.0.1 (Ubiquitous)**: The system shall mirror the repo's layout in the vault folder: a file syncs at the same path relative to the repo root on the repo side as relative to the vault folder on the vault side. A docs folder `docs` appears as `docs/` in the vault folder, so relative links between synced files resolve the same way in both apps.
+- **22.0.2 (Optional Feature)**: Where the link's `rootFiles` setting lists file names, the system shall also sync those Markdown files at the top of the repo root, in both directions, under the same rules, privacy guards and ignore rules as the docs. By default it lists `README.md`, `CHANGELOG.md` and `RELEASE_NOTES.md`; an empty list turns it off.
+- **22.0.3 (Ubiquitous)**: The system shall keep a vault note that lies outside the vault's copy of the docs folder, and isn't a listed root file, in the vault only, without reporting it as a problem. The plugin shall show its sync rule as vault only.
+- **22.0.4 (Event-Driven)**: When a file name is removed from `rootFiles`, the system shall stop syncing that file and leave both copies where they are.
+- **22.0.5 (Ubiquitous)**: The system shall never sync a file at the repo root that `rootFiles` doesn't list, nor a folder at the repo root other than the docs folder's path.
+
+#### Acceptance Criteria
+- **22.1**: With `docs/` linked and the default settings, `README.md`, `CHANGELOG.md` and `RELEASE_NOTES.md` at the repo root appear at the top of the vault folder, `docs/guide.md` appears as `docs/guide.md`, and an edit to the vault's `README.md` reaches the repo's `README.md`.
+- **22.2**: A link from `README.md` to `docs/guide.md`, and one from `docs/guide.md` to `../README.md`, resolve in Obsidian.
+- **22.3**: With `rootFiles` set to `[]`, no root file syncs. Removing `CHANGELOG.md` from the list leaves both copies in place, and an edit to either copy afterwards doesn't reach the other.
+- **22.4**: A note created at the top of the vault folder never reaches the repo, no problem is reported for it, and Obsidian shows its rule as vault only.
+- **22.5**: A root file marked `project-docs: private` in the vault, or containing a real value from PRIVATE.md, is held back exactly as a doc would be.
+- **22.6**: `CONTRIBUTING.md` at the repo root, while not listed, and `src/notes.md` never appear in the vault, and no vault note at those paths appears in the repo.
+- **22.7**: With the repo root linked, the vault folder holds the same files as before this change, and `rootFiles` changes nothing.

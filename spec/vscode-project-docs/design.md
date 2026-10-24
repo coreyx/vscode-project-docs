@@ -67,7 +67,7 @@ flowchart LR
 
 | Module | Responsibility |
 |---|---|
-| `paths/` | Canonical path keys (NFC, `/` separators, relative to the linked folder); case-folded keys for clash detection; portability checks (Windows reserved names and characters, trailing dot or space); WSL path translation. |
+| `paths/` | Canonical path keys (NFC, `/` separators, relative to the repo root, which the vault folder mirrors; decision 2); case-folded keys for clash detection; portability checks (Windows reserved names and characters, trailing dot or space); WSL path translation. |
 | `sidefs/` | The `SideFs` interface, plus a Node implementation with atomic writes (temporary file in the same folder, `fsync`, rename). Trash is injected (VS Code API, the `trash` package, or a vault `.trash` mover). |
 | `scan/` | Walks one side into a `Snapshot`. It never follows symlinks or junctions, and skips (and reports) non-UTF-8 Markdown, files over 5 MB, and anything inside `.project-docs/`. It also skips, silently and on both sides, what the repo's ignore rules exclude (decision 20). Hashing is SHA-256 over line-ending-normalized content for Markdown, and over raw bytes otherwise. A stat cache skips re-hashing files whose size and modification time are unchanged. |
 | `rules/` | Reads the `project-docs` property, and writes it by editing only the frontmatter block through `yaml`'s Document API. |
@@ -123,7 +123,8 @@ There are three commands over the core. `sync` takes the lock (owner `cli`), sca
 **Alternatives:** reacting to each watch event as it arrives. That's simpler for a single file, but makes bulk decisions and crash recovery much harder, and can't be tested without real watchers.
 
 ### 2. No path remapping: the same relative path on both sides
-**What:** a file's key is its path relative to the linked folder, identical on both sides.
+**What:** a file's key is its path relative to the repo root, identical on both sides: the vault folder mirrors the repo root (decision 21). Only the docs folder and the listed root files are in the sync's scope. With the repo root linked, that is the same as before.
+**Revised for REQ-22:** keys were first relative to the docs folder, with the docs at the top of the vault folder. Mirroring the repo instead lets root files sync without renaming them, and keeps relative links between them and the docs resolving in both apps. No link existed before the change, so nothing is migrated.
 **Why:** the requirements dropped path remapping for the first release. With one key per file, renames, clashes and conflicts are all unambiguous.
 
 ### 3. Rename detection by content hash against the base
@@ -281,8 +282,8 @@ Neither app can save a decoded document anywhere, and decoding never changes the
 ### 20. Files git ignores are skipped on both sides, judged by their repo path
 **What:**
 - **The rules:** every `.gitignore` from the repo root down to the docs folder and inside it, plus `.git/info/exclude`, read with the `ignore` package. A nested `.gitignore` applies relative to its own folder, as in git. A file inside a folder named `node_modules` is always skipped, even in a repo with no `.gitignore` or no `.git`.
-- **Exceptions:** `settings.syncIgnored` in `.project-docs.json` lists patterns, in `.gitignore` syntax and relative to the docs folder, for paths that sync although git ignores them: notes kept out of git on purpose but wanted in Obsidian. It's committed, so everyone who links the repo gets the same exceptions. It can't bring back `node_modules`.
-- **Both sides, one answer:** each key is matched by its path in the repo (`<docs folder>/<key>`), whichever side it's on. The engine loads the rules once per pass and hands the same matcher to both scans. An ignored folder isn't entered on either side.
+- **Exceptions:** `settings.syncIgnored` in `.project-docs.json` lists patterns, in `.gitignore` syntax and relative to the repo root (the key space of decision 2), for paths that sync although git ignores them: notes kept out of git on purpose but wanted in Obsidian. It's committed, so everyone who links the repo gets the same exceptions. It can't bring back `node_modules`.
+- **Both sides, one answer:** each key is its path in the repo (decision 2), and is matched as that, whichever side it's on. The engine loads the rules once per pass and hands the same matcher to both scans. An ignored folder isn't entered on either side.
 - **A file that becomes ignored** drops out of both snapshots, and the planner finds its index entry has a key the rules now skip. It doesn't forget the entry: it marks it `ignored`, touches neither copy, and reports one `now-ignored` notice per ignored folder (or per file, for a file ignored on its own), with the fixes `sync-ignored` and `stop-syncing`. Keeping the base means that if the user keeps syncing it, an edit made on either side in the meantime merges as usual instead of becoming a conflict.
   - **Keep syncing it** (`sync-ignored`) adds the folder, or the file, to `syncIgnored` in `.project-docs.json`. The next pass treats the entries as synced again.
   - **Stop syncing it** (`stop-syncing`) forgets the entries. Nothing is deleted or moved to the trash, on either side.
@@ -302,6 +303,24 @@ Neither app can save a decoded document anywhere, and decoding never changes the
 - excluding only `node_modules` and a fixed list of build folders: it misses each project's own ignored folders, and wrongly skips notes in a folder named, say, `build`;
 - refusing to link the repo root, which rules out repos whose docs live at the root.
 
+### 21. The vault mirrors the repo, and lists root files to sync
+**What:**
+- **Scope:** the repo side is the repo root, filtered to the docs folder and the names in `settings.rootFiles` (Markdown files at the top of the repo root). The same filter applies to the vault side by key, so a key is in scope on both sides or on neither, as with the ignore rules (decision 20). The filter prunes the walk, so `src/` and other folders aren't entered.
+- **`rootFiles`** defaults to `["README.md", "CHANGELOG.md", "RELEASE_NOTES.md"]`; `[]` turns it off. Each entry is a bare file name ending in `.md`, never one of the never-synced names (REQ-3.0.6) or the link files. Names are matched exactly; on a case-insensitive filesystem, the file's real name on disk is the key, as for any file.
+- **Out of scope on the vault side:** a note outside the vault's copy of the docs folder that isn't a listed root file is left out of both snapshots, so it stays in the vault, unreported (REQ-22.0.3). The link note is already one.
+- **Removing a name from `rootFiles`** takes its key out of scope on both sides, so the planner sees it gone from both and forgets it, deleting nothing (REQ-22.0.4). Unlike decision 20, no notice is raised: the user removed it on purpose, in the committed setting.
+- **The private subfolder** is relative to the docs folder: `<docs folder>/<privateSubfolder>/` in the vault. The privacy rules, the private-files list and decision 17 work on it unchanged.
+- **Watchers** watch the repo root, and drop events outside the scope, so changes to source code don't start passes (REQ-20.0.2).
+- **The plugin** reads the scope from `.project-docs.json` (`docsFolder`, `rootFiles`), and shows a note outside it as vault only.
+- **A repo-root link** has everything in scope, and `rootFiles` has no effect.
+
+**Why:** REQ-22. Mirroring keeps decision 2's single key per file, so renames, clashes and conflicts stay unambiguous, and needs no renaming of root files. A filter applied to both sides keeps the planner's invariant that a file missing from one side only was deleted there.
+
+**Alternatives considered:**
+- a subfolder for the root files (such as `Repo root/`), keeping the docs at the top of the vault folder: nothing else moves, but links between the README and the docs don't resolve in Obsidian;
+- root files beside the docs under changed names, such as `README (repo root).md`: path remapping, which decision 2 avoids;
+- reporting out-of-scope vault notes as problems: noisy for notes kept there on purpose.
+
 ## Data model
 
 ### Committed link file: `<repo>/.project-docs.json`
@@ -320,13 +339,14 @@ Neither app can save a decoded document anywhere, and decoding never changes the
     "keepLinksAsWritten": false,
     "allowLinksOutsideProjectFolder": false,
     "advancedUriDeepLinks": false,
-    "syncIgnored": []
+    "syncIgnored": [],
+    "rootFiles": ["README.md", "CHANGELOG.md", "RELEASE_NOTES.md"]
   },
   "deepLink": "obsidian://adv-uri?uid=pd_3f2c9a1e-7b4d-4c1a-9e2f-5a6b7c8d9e0f"
 }
 ```
 
-`deepLink` is present only while `advancedUriDeepLinks` is on. `syncIgnored` holds patterns relative to the docs folder (decision 20); a missing key means none. The file is validated against a JSON schema shipped in the core, and `records/` rejects any absolute path in it.
+`deepLink` is present only while `advancedUriDeepLinks` is on. `syncIgnored` holds patterns relative to the repo root (decision 20); a missing key means none. `rootFiles` lists the root files to sync (decision 21); a missing key means the default list, and `[]` none. `privateSubfolder` is relative to the docs folder. The file is validated against a JSON schema shipped in the core, and `records/` rejects any absolute path in it.
 
 ### Machine-local link file: `<repo>/.project-docs.local.json` (gitignored)
 
@@ -599,6 +619,7 @@ Exit codes:
 | REQ-18 CLI | `packages/cli`; lock owner; exit codes |
 | REQ-19 Safe operation | `lock/`; decision 11; decision 10 for lost state; the state location |
 | REQ-20 Performance | Stat-cache hashing; debounce; polling only where needed; scanner size cap |
+| REQ-22 The vault mirrors the repo, with root files | Decisions 2 and 21; the scope filter in `scan/`; `settings.rootFiles`; scoped watchers; the plugin's scope check |
 | REQ-21 Quality and distribution | Pure planner for property tests (decision 1); merge-editor smoke test; web stub; CI matrix and coverage (tech.md) |
 
 **Acceptance criteria to watch:**
