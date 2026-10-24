@@ -47,6 +47,12 @@ export interface SchedulerOptions {
   readonly debounceMs?: number;
   /** Full rescan interval, the safety net for missed events (REQ-4.0.3: 10 minutes). */
   readonly rescanMs?: number;
+  /**
+   * When the one early rescan after starting runs. Watchers take a moment to start reporting, on
+   * Linux especially, and a change made in that moment, such as an edit straight after linking,
+   * would otherwise wait for the periodic rescan.
+   */
+  readonly settleMs?: number;
   /** How often to try for a lock held elsewhere, to take over when it goes stale. */
   readonly lockRetryMs?: number;
   readonly timers?: Timers;
@@ -56,6 +62,7 @@ export interface SchedulerOptions {
 
 export const DEBOUNCE_MS = 300;
 export const RESCAN_MS = 10 * 60_000;
+export const SETTLE_MS = 2_000;
 export const LOCK_RETRY_MS = 15_000;
 
 /** Runs sync passes for one project for as long as it's started. */
@@ -64,6 +71,7 @@ export class SyncScheduler {
   private stopHeartbeat: (() => void) | null = null;
   private debounce: unknown = null;
   private rescan: unknown = null;
+  private settle: unknown = null;
   private lockRetry: unknown = null;
   private running: Promise<void> | null = null;
   private rerun = false;
@@ -127,6 +135,10 @@ export class SyncScheduler {
 
   private async begin(): Promise<void> {
     this.rescan = this.timers.setInterval(() => this.notify(), this.options.rescanMs ?? RESCAN_MS);
+    this.settle = this.timers.setTimeout(() => {
+      this.settle = null;
+      this.notify();
+    }, this.options.settleMs ?? SETTLE_MS);
     await this.syncNow();
   }
 
@@ -259,6 +271,7 @@ export class SyncScheduler {
     for (const [handle, clear] of [
       [this.debounce, (h: unknown) => this.timers.clearTimeout(h)],
       [this.rescan, (h: unknown) => this.timers.clearInterval(h)],
+      [this.settle, (h: unknown) => this.timers.clearTimeout(h)],
       [this.lockRetry, (h: unknown) => this.timers.clearInterval(h)],
     ] as const) {
       if (handle !== null) clear(handle);

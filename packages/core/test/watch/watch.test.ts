@@ -43,13 +43,14 @@ const fileIs = (file: string, text: string) => async () => {
 async function scheduler(
   window: string,
   states: SchedulerState[] = [],
-  options: { rescanMs?: number; lockRetryMs?: number } = {},
+  options: { rescanMs?: number; lockRetryMs?: number; settleMs?: number } = {},
 ) {
   const s = new SyncScheduler({
     project: await linked.open(),
     window,
     debounceMs: 20,
     rescanMs: options.rescanMs ?? 60_000,
+    settleMs: options.settleMs ?? 60_000,
     lockRetryMs: options.lockRetryMs ?? 60_000,
     onState: (state) => states.push(state),
   });
@@ -150,6 +151,16 @@ describe("SyncScheduler", () => {
     await writeFile(path.join(linked.docs, "unreported.md"), "missed by the watcher\n");
     await eventually(
       fileIs(path.join(linked.vaultDocs, "unreported.md"), "missed by the watcher\n"),
+      3_000,
+    );
+  });
+
+  it("rescans once soon after starting, for a change made while the watchers were starting", async () => {
+    const s = await scheduler("w1", [], { rescanMs: 60_000, settleMs: 200 });
+    await s.start();
+    await writeFile(path.join(linked.docs, "straight-after.md"), "edited straight after linking\n");
+    await eventually(
+      fileIs(path.join(linked.vaultDocs, "straight-after.md"), "edited straight after linking\n"),
       3_000,
     );
   });
