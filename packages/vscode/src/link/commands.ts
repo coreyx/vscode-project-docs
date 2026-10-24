@@ -65,8 +65,9 @@ export const vscodePrompter: Prompter = {
   },
   async vaultFolder(defaultValue) {
     return vscode.window.showInputBox({
-      title: "Link to Obsidian (3/3): folder in the vault",
-      prompt: "Where the docs go in the vault, relative to the vault",
+      title: "Link to Obsidian (3/3): project folder in the vault",
+      prompt:
+        "The vault folder that mirrors the repo, relative to the vault. The docs go in it at the same path as in the repo.",
       value: defaultValue,
       ignoreFocusOut: true,
       validateInput: (value) =>

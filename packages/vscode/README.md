@@ -12,7 +12,7 @@ Project Docs is part of SpecDevShip. It has a companion Obsidian plugin.
 2. Run **Project Docs: Link to Obsidian** from the Command Palette, and answer three questions:
    - the docs folder in the repo (`docs` by default);
    - the vault, picked from the vaults Obsidian knows about;
-   - the folder in the vault (`Projects/<repo name>` by default).
+   - the project folder in the vault (`Projects/<repo name>` by default), which mirrors the repo.
 
    If the docs folder holds folders of notes that git ignores, it also asks which of them to sync anyway. None is picked unless you pick it.
 
@@ -76,7 +76,7 @@ A rule Project Docs can't read stops that file syncing, and the Project Docs vie
 
 Project Docs is built so that a public repo never reveals your vault:
 
-- **Private notes.** Anything in the project folder's `private` subfolder, and any note marked `project-docs: private`, stays in the vault. A note in the private folder with no marker still stays there, so moving a note out of it by accident doesn't publish it.
+- **Private notes.** Anything in the docs folder's `private` subfolder in the vault (`docs/private/` with `docs` linked), and any note marked `project-docs: private`, stays in the vault. A note in the private folder with no marker still stays there, so moving a note out of it by accident doesn't publish it.
 - **Their names.** A synced note that links to a private note is held back, because the link would put the private note's name in the repo. So is a link to a note outside the project folder, unless `allowLinksOutsideProjectFolder` is on.
 - **Real values.** An edit made in Obsidian that contains a real value from PRIVATE.md is held back, and you're offered to replace it with its placeholder.
 - **The link note**, which records your local paths, never syncs, whatever its frontmatter says.
@@ -166,7 +166,7 @@ A linked repo has two files at its root. Both are JSON, carry a `format` version
 }
 ```
 
-So to find a project's vault notes, read `vaultFolderPath` from `.project-docs.local.json`, or run `project-docs where`. Notes in its `private` subfolder are the project's vault-only notes; edit them in place. The machine-local file is the source of truth for the vault's location; deep links are a convenience for people.
+So to find a project's vault notes, read `vaultFolderPath` from `.project-docs.local.json`, or run `project-docs where`. Notes in the private folder inside its docs folder (`docs/private/` with `docs` linked) are the project's vault-only notes; edit them in place. The machine-local file is the source of truth for the vault's location; deep links are a convenience for people.
 
 ## The command line
 
