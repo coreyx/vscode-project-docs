@@ -19,6 +19,8 @@ export interface LinkedProject {
   readonly repo: string;
   readonly docs: string;
   readonly vaultFolder: string;
+  /** The vault's copy of the docs folder: the vault folder mirrors the repo (design decision 21). */
+  readonly vaultDocs: string;
   readonly stateRoot: string;
   open(): Promise<Project>;
   cleanup(): Promise<void>;
@@ -43,7 +45,10 @@ export async function linkedProject(
   const stateRoot = path.join(root, "state");
   const docs = path.join(repo, ...docsFolder.split("/").filter(Boolean));
   await mkdir(docs, { recursive: true });
-  await mkdir(vaultFolder, { recursive: true });
+  // The vault folder mirrors the repo, so its copy of the docs folder is there from the start.
+  await mkdir(path.join(vaultFolder, ...docsFolder.split("/").filter(Boolean)), {
+    recursive: true,
+  });
   const projectId = newProjectId();
   await writeLink(
     repo,
@@ -65,6 +70,7 @@ export async function linkedProject(
     repo,
     docs,
     vaultFolder,
+    vaultDocs: path.join(vaultFolder, ...docsFolder.split("/").filter(Boolean)),
     stateRoot,
     async open() {
       const project = await openProject(repo, { repoTrash: async (p) => rm(p), stateRoot });

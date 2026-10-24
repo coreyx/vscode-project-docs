@@ -404,7 +404,7 @@ A change agreed before the release: files git ignores, and anything in `node_mod
 
 A change agreed before the release: the vault folder mirrors the repo root, so the README, changelog and release notes sync beside the docs, and links between them resolve in both apps.
 
-- [ ] **TASK-39: Key files by their path in the repo, and sync only what's in scope**
+- [x] **TASK-39: Key files by their path in the repo, and sync only what's in scope**
   - **Associated Acceptance Criteria**: `22.1`, `22.2`, `22.4`, `22.6`, `22.7`
   - **Concrete Steps**:
     1. Make keys relative to the repo root (design decisions 2 and 21): root the repo side at the repo root, with the vault folder mirroring it.

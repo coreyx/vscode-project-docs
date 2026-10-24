@@ -39,28 +39,32 @@ describe("loadIgnoreRules (REQ-3.0.7, design decision 20)", () => {
       ".gitignore": "build/\n*.log\n/docs/top-only.md\n",
       "docs/sub/.gitignore": "draft.md\n",
     });
+    // Keys are paths in the repo (design decision 2).
     const r = await rules();
-    expect(r.skips("build/notes.md", false)).toBe(true);
-    expect(r.skips("build", true)).toBe(true);
-    expect(r.skips("a/b/trace.log", false)).toBe(true);
-    expect(r.skips("top-only.md", false)).toBe(true);
-    expect(r.skips("sub/top-only.md", false)).toBe(false);
-    expect(r.skips("sub/draft.md", false)).toBe(true);
+    expect(r.skips("docs/build/notes.md", false)).toBe(true);
+    expect(r.skips("docs/build", true)).toBe(true);
+    expect(r.skips("docs/a/b/trace.log", false)).toBe(true);
+    expect(r.skips("docs/top-only.md", false)).toBe(true);
+    expect(r.skips("docs/sub/top-only.md", false)).toBe(false);
+    expect(r.skips("docs/sub/draft.md", false)).toBe(true);
     // A nested .gitignore applies only below its own folder.
-    expect(r.skips("draft.md", false)).toBe(false);
-    expect(r.skips("guide.md", false)).toBe(false);
+    expect(r.skips("docs/draft.md", false)).toBe(false);
+    expect(r.skips("docs/guide.md", false)).toBe(false);
+    // The root's .gitignore applies to the root files too.
+    expect(r.skips("trace.log", false)).toBe(true);
+    expect(r.skips("README.md", false)).toBe(false);
   });
 
   it("lets a deeper .gitignore re-include what a shallower one ignores, as git does", async () => {
     await files({ ".gitignore": "*.tmp.md\n", "docs/keep/.gitignore": "!*.tmp.md\n" });
     const r = await rules();
-    expect(r.skips("a.tmp.md", false)).toBe(true);
-    expect(r.skips("keep/a.tmp.md", false)).toBe(false);
+    expect(r.skips("docs/a.tmp.md", false)).toBe(true);
+    expect(r.skips("docs/keep/a.tmp.md", false)).toBe(false);
   });
 
   it("can't bring back a file inside an ignored folder with a negation", async () => {
     await files({ "docs/.gitignore": "scratch/\n!scratch/a.md\n" });
-    expect((await rules()).skips("scratch/a.md", false)).toBe(true);
+    expect((await rules()).skips("docs/scratch/a.md", false)).toBe(true);
   });
 
   it("reads .git/info/exclude, and finds it through a worktree's .git file", async () => {
@@ -139,7 +143,10 @@ describe("findIgnoredNoteFolders (REQ-1.0.6)", () => {
       "docs/notes/private-drafts/b.md": "b\n",
       "docs/node_modules/pkg/README.md": "pkg\n",
     });
-    expect(await findIgnoredNoteFolders(repo, "docs")).toEqual(["notes/private-drafts", "scratch"]);
+    expect(await findIgnoredNoteFolders(repo, "docs")).toEqual([
+      "docs/notes/private-drafts",
+      "docs/scratch",
+    ]);
   });
 
   it("finds none when the rules can't be read", async () => {

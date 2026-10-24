@@ -24,19 +24,22 @@ export function isIgnoredChange(relativePath: string): boolean {
 }
 
 /**
- * Watches `root` recursively and calls `onChange` for relevant changes. Returns a function that
+ * Watches `root` recursively and calls `onChange` for relevant changes: those `isIgnoredChange`
+ * keeps, and that `relevant` accepts, such as those in the link's scope (design decision 21). Returns a function that
  * stops watching, or null when recursive watching isn't available here, so the caller can poll.
  */
 export function startNativeWatch(
   root: string,
   onChange: () => void,
   onError?: (error: unknown) => void,
+  relevant: (relativePath: string) => boolean = () => true,
 ): (() => void) | null {
   let watcher: FSWatcher;
   try {
     watcher = watch(root, { recursive: true }, (_event, filename) => {
       // Some platforms don't say which file changed; treat that as relevant.
-      if (filename === null || !isIgnoredChange(filename.toString())) onChange();
+      if (filename === null) onChange();
+      else if (!isIgnoredChange(filename.toString()) && relevant(filename.toString())) onChange();
     });
   } catch {
     return null;

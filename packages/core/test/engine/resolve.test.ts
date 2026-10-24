@@ -26,14 +26,14 @@ async function makeConflict() {
   await writeFile(path.join(linked.docs, "a.md"), "line\n");
   await syncOnce(project);
   await writeFile(path.join(linked.docs, "a.md"), "repo line\n");
-  await writeFile(path.join(linked.vaultFolder, "a.md"), "vault line\n");
+  await writeFile(path.join(linked.vaultDocs, "a.md"), "vault line\n");
   await syncOnce(project);
 }
 
 describe("conflict resolution (REQ-5.0.6)", () => {
   it("keeps all three versions for the merge editor (REQ-5.2)", async () => {
     await makeConflict();
-    const versions = await conflictVersions(project, "a.md");
+    const versions = await conflictVersions(project, "docs/a.md");
     expect(versions?.kind).toBe("markdown");
     expect(versionText(versions?.base ?? null)).toBe("line\n");
     expect(versionText(versions?.repo ?? null)).toBe("repo line\n");
@@ -43,13 +43,13 @@ describe("conflict resolution (REQ-5.0.6)", () => {
 
   it("writes the resolution to both sides, after which edits sync normally (REQ-5.3)", async () => {
     await makeConflict();
-    await resolveConflict(project, "a.md", "merged by hand\n");
+    await resolveConflict(project, "docs/a.md", "merged by hand\n");
     const read = (file: string) => readFile(file, "utf8").then((t) => t.replace(/\r\n/g, "\n"));
     expect(await read(path.join(linked.docs, "a.md"))).toBe("merged by hand\n");
-    expect(await read(path.join(linked.vaultFolder, "a.md"))).toBe("merged by hand\n");
+    expect(await read(path.join(linked.vaultDocs, "a.md"))).toBe("merged by hand\n");
     expect(await project.store.listConflicts()).toEqual([]);
 
-    await writeFile(path.join(linked.vaultFolder, "a.md"), "merged by hand\nand edited later\n");
+    await writeFile(path.join(linked.vaultDocs, "a.md"), "merged by hand\nand edited later\n");
     await syncOnce(project);
     expect(await read(path.join(linked.docs, "a.md"))).toBe("merged by hand\nand edited later\n");
   });
@@ -60,10 +60,13 @@ describe("conflict resolution (REQ-5.0.6)", () => {
     const { index } = await project.store.loadIndex();
     await project.store.saveIndex({
       ...index,
-      entries: { ...index.entries, "a.md": { ...index.entries["a.md"]!, state: "conflict" } },
+      entries: {
+        ...index.entries,
+        "docs/a.md": { ...index.entries["docs/a.md"]!, state: "conflict" },
+      },
     });
-    await resolveConflict(project, "a.md", new Uint8Array([104, 105]));
-    expect(await readFile(path.join(linked.vaultFolder, "a.md"), "utf8")).toBe("hi");
+    await resolveConflict(project, "docs/a.md", new Uint8Array([104, 105]));
+    expect(await readFile(path.join(linked.vaultDocs, "a.md"), "utf8")).toBe("hi");
   });
 
   it("refuses to resolve a file that has no conflict", async () => {

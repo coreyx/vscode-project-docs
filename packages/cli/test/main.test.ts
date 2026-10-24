@@ -22,6 +22,8 @@ let root: string;
 let repo: string;
 let vaultRoot: string;
 let vaultFolder: string;
+/** The vault's copy of the docs folder: the vault folder mirrors the repo. */
+let vaultDocs: string;
 let stateRoot: string;
 let projectId: string;
 let out: string[];
@@ -43,9 +45,10 @@ beforeEach(async () => {
   repo = path.join(root, "repo");
   vaultRoot = path.join(root, "vault");
   vaultFolder = path.join(vaultRoot, "Projects", "repo");
+  vaultDocs = path.join(vaultFolder, "docs");
   stateRoot = path.join(root, "state");
   await mkdir(path.join(repo, "docs"), { recursive: true });
-  await mkdir(vaultFolder, { recursive: true });
+  await mkdir(vaultDocs, { recursive: true });
   spawnSync("git", ["init", "-q", repo]);
   projectId = newProjectId();
   await writeLink(
@@ -112,12 +115,12 @@ describe("sync (REQ-18.1)", () => {
   it("syncs an agent's repo edit to the vault with VS Code closed", async () => {
     await writeFile(path.join(repo, "docs", "plan.md"), "Edited by an agent\n");
     expect(await run(["sync"])).toBe(EXIT.ok);
-    expect(await readFile(path.join(vaultFolder, "plan.md"), "utf8")).toBe("Edited by an agent\n");
+    expect(await readFile(path.join(vaultDocs, "plan.md"), "utf8")).toBe("Edited by an agent\n");
     expect(out[0]).toBe("Synced: 1 change applied.");
   });
 
   it("reports in JSON", async () => {
-    await writeFile(path.join(vaultFolder, "note.md"), "From Obsidian\n");
+    await writeFile(path.join(vaultDocs, "note.md"), "From Obsidian\n");
     expect(await run(["sync", "--json"])).toBe(EXIT.ok);
     expect(JSON.parse(out.join("\n"))).toMatchObject({ outcome: "synced", applied: 1 });
   });
@@ -138,9 +141,9 @@ describe("sync (REQ-18.1)", () => {
     for (let i = 0; i < 25; i++) await rm(path.join(repo, "docs", `d${i}.md`));
     expect(await run(["sync"])).toBe(EXIT.bulk);
     expect(err.at(-1)).toContain("would delete or overwrite 25 files");
-    expect(await readFile(path.join(vaultFolder, "d0.md"), "utf8")).toBe("0\n");
+    expect(await readFile(path.join(vaultDocs, "d0.md"), "utf8")).toBe("0\n");
     expect(await run(["sync", "--yes"])).toBe(EXIT.ok);
-    await expect(readFile(path.join(vaultFolder, "d0.md"), "utf8")).rejects.toThrow();
+    await expect(readFile(path.join(vaultDocs, "d0.md"), "utf8")).rejects.toThrow();
   });
 });
 
@@ -148,27 +151,27 @@ describe("status", () => {
   it("shows what would change without changing anything", async () => {
     await writeFile(path.join(repo, "docs", "a.md"), "a\n");
     expect(await run(["status"])).toBe(EXIT.ok);
-    expect(out).toEqual(["  copy a.md from the repo to the vault"]);
-    await expect(readFile(path.join(vaultFolder, "a.md"), "utf8")).rejects.toThrow();
+    expect(out).toEqual(["  copy docs/a.md from the repo to the vault"]);
+    await expect(readFile(path.join(vaultDocs, "a.md"), "utf8")).rejects.toThrow();
   });
 
   it("says when there's nothing to do, and reports notices", async () => {
     expect(await run(["status"])).toBe(EXIT.ok);
     expect(out).toEqual(["Nothing to sync."]);
-    await writeFile(path.join(vaultFolder, "bad.md"), "---\nproject-docs: typo\n---\n");
+    await writeFile(path.join(vaultDocs, "bad.md"), "---\nproject-docs: typo\n---\n");
     out.length = 0;
     await run(["status", "--json"]);
     expect(JSON.parse(out.join("\n")).notices[0]).toMatchObject({ code: "invalid-rule" });
   });
 
   it("reports a note that stopped being private, and has no way to confirm it (REQ-10.0.8)", async () => {
-    await writeFile(path.join(vaultFolder, "plan.md"), "---\nproject-docs: private\n---\nplan\n");
+    await writeFile(path.join(vaultDocs, "plan.md"), "---\nproject-docs: private\n---\nplan\n");
     expect(await run(["sync"])).toBe(EXIT.ok);
-    await writeFile(path.join(vaultFolder, "plan.md"), "plan\n");
+    await writeFile(path.join(vaultDocs, "plan.md"), "plan\n");
     out.length = 0;
     expect(await run(["sync", "--yes"])).toBe(EXIT.ok);
     expect(out).toContain(
-      "! plan.md was private, so it isn't synced to the repo until you confirm in VS Code or Obsidian",
+      "! docs/plan.md was private, so it isn't synced to the repo until you confirm in VS Code or Obsidian",
     );
     await expect(readFile(path.join(repo, "docs", "plan.md"), "utf8")).rejects.toThrow();
     expect(await run(["sync", "--confirm", "plan.md"])).toBe(EXIT.error);

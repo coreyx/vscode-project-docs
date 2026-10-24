@@ -74,6 +74,8 @@ describe("conflicts and the bulk guard", function () {
   let repo: string;
   let docs: string;
   let vaultFolder: string;
+  /** The vault's copy of the docs folder: the vault folder mirrors the repo. */
+  let vaultDocs: string;
   let docsApi: ProjectDocsApi;
 
   beforeEach(async () => {
@@ -82,8 +84,9 @@ describe("conflicts and the bulk guard", function () {
     docs = path.join(repo, "docs");
     const vault = path.join(root, "Vault");
     vaultFolder = path.join(vault, "Projects", "repo");
+    vaultDocs = path.join(vaultFolder, "docs");
     await mkdir(docs, { recursive: true });
-    await mkdir(vault, { recursive: true });
+    await mkdir(vaultDocs, { recursive: true });
     spawnSync("git", ["init", "-q", repo]);
     docsApi = await api();
     await docsApi.link(repo, {
@@ -102,27 +105,27 @@ describe("conflicts and the bulk guard", function () {
 
   async function conflict() {
     await writeFile(path.join(docs, "a.md"), "line\n");
-    await eventually(async () => (await text(path.join(vaultFolder, "a.md"))) === "line\n", 5_000);
+    await eventually(async () => (await text(path.join(vaultDocs, "a.md"))) === "line\n", 5_000);
     await docsApi.controller()?.pause();
     await writeFile(path.join(docs, "a.md"), "repo line\n");
-    await writeFile(path.join(vaultFolder, "a.md"), "vault line\n");
+    await writeFile(path.join(vaultDocs, "a.md"), "vault line\n");
     await docsApi.controller()?.resume();
     await eventually(() => docsApi.controller()?.state.state === "attention", 5_000);
   }
 
   it("resolves a conflict in the merge editor and syncs normally after (REQ-5.2, 5.3)", async () => {
     await conflict();
-    assert.equal(await text(path.join(vaultFolder, "a.md")), "repo line\n");
-    assert.equal(await docsApi.conflicts.open("a.md"), "merge-editor");
-    const output = docsApi.conflicts.outputFor("a.md");
+    assert.equal(await text(path.join(vaultDocs, "a.md")), "repo line\n");
+    assert.equal(await docsApi.conflicts.open("docs/a.md"), "merge-editor");
+    const output = docsApi.conflicts.outputFor("docs/a.md");
     assert.ok(output);
     // What the user would produce in the merge editor.
     await writeFile(output, "repo line\nvault line\n");
     assert.equal(await docsApi.conflicts.completeFromOutput(output), true);
     assert.equal(await text(path.join(docs, "a.md")), "repo line\nvault line\n");
-    assert.equal(await text(path.join(vaultFolder, "a.md")), "repo line\nvault line\n");
+    assert.equal(await text(path.join(vaultDocs, "a.md")), "repo line\nvault line\n");
 
-    await writeFile(path.join(vaultFolder, "a.md"), "repo line\nvault line\nmore\n");
+    await writeFile(path.join(vaultDocs, "a.md"), "repo line\nvault line\nmore\n");
     await eventually(
       async () => (await text(path.join(docs, "a.md"))) === "repo line\nvault line\nmore\n",
       5_000,
@@ -131,8 +134,8 @@ describe("conflicts and the bulk guard", function () {
 
   it("falls back to conflict markers, and won't complete while any remain", async () => {
     await conflict();
-    assert.equal(await docsApi.conflicts.open("a.md", { forceFallback: true }), "markers");
-    const output = docsApi.conflicts.outputFor("a.md");
+    assert.equal(await docsApi.conflicts.open("docs/a.md", { forceFallback: true }), "markers");
+    const output = docsApi.conflicts.outputFor("docs/a.md");
     assert.ok(output);
     assert.match((await text(output)) ?? "", /<<<<<<< repo/);
     assert.equal(await docsApi.conflicts.completeFromOutput(output), false);
@@ -143,16 +146,16 @@ describe("conflicts and the bulk guard", function () {
 
   it("waits at the bulk guard, and changes nothing until told to proceed (REQ-7.1, 7.2)", async () => {
     for (let i = 0; i < 30; i++) await writeFile(path.join(docs, `d${i}.md`), `${i}\n`);
-    await eventually(async () => (await text(path.join(vaultFolder, "d29.md"))) === "29\n", 10_000);
+    await eventually(async () => (await text(path.join(vaultDocs, "d29.md"))) === "29\n", 10_000);
     for (let i = 0; i < 25; i++) await rm(path.join(docs, `d${i}.md`));
     await eventually(() => docsApi.controller()?.state.state === "bulk", 10_000);
-    assert.equal(await text(path.join(vaultFolder, "d0.md")), "0\n");
+    assert.equal(await text(path.join(vaultDocs, "d0.md")), "0\n");
 
     await vscode.commands.executeCommand("projectDocs.cancelBulk");
     assert.equal(docsApi.controller()?.state.state, "idle");
-    assert.equal(await text(path.join(vaultFolder, "d0.md")), "0\n");
+    assert.equal(await text(path.join(vaultDocs, "d0.md")), "0\n");
 
     await vscode.commands.executeCommand("projectDocs.proceedBulk");
-    await eventually(async () => (await text(path.join(vaultFolder, "d0.md"))) === null, 10_000);
+    await eventually(async () => (await text(path.join(vaultDocs, "d0.md"))) === null, 10_000);
   });
 });

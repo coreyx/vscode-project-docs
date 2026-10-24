@@ -178,7 +178,7 @@ export const COMMITTED_SCHEMA = {
           items: { type: "string" },
           default: [],
           description:
-            "Paths that sync although git ignores them, in .gitignore syntax and relative to the docs folder, such as /scratch/ for notes kept out of git but wanted in Obsidian. A leading slash anchors a pattern to the docs folder. node_modules never syncs.",
+            "Paths that sync although git ignores them, in .gitignore syntax and relative to the repo root, such as /docs/scratch/ for notes kept out of git but wanted in Obsidian. A leading slash anchors a pattern to the repo root. node_modules never syncs.",
         },
       },
       additionalProperties: false,

@@ -2,7 +2,7 @@
  * The planner's inputs and outputs (design.md, Interfaces). A plan is a complete, ordered
  * description of everything one sync pass will do, computed without touching either folder.
  */
-import type { IgnoreRules } from "../scan/index.js";
+import type { IgnoreRules, Scope } from "../scan/index.js";
 import type { PrivateFilesList, INVALID_PRIVATE_FILES } from "../guards/index.js";
 import type { LinkResolver } from "../links/index.js";
 import type { PrivateMdMapping } from "../privatemd/index.js";
@@ -42,6 +42,11 @@ export interface PlanInput {
    * whose key they now skip is set aside as `ignored` instead of being planned as a deletion.
    */
   readonly ignore?: IgnoreRules | undefined;
+  /**
+   * What the link syncs, which also built the snapshots (design decision 21). An index entry out
+   * of scope is forgotten before rename detection, deleting nothing.
+   */
+  readonly scope?: Scope | undefined;
   readonly mapping: PrivateMdMapping | null;
   readonly resolver: LinkResolver;
   /** Reads a Markdown file's text from a side; null if it vanished since the scan. */

@@ -23,6 +23,15 @@ export async function vscodeTrash(absolutePath: string): Promise<void> {
   await vscode.workspace.fs.delete(vscode.Uri.file(absolutePath), { useTrash: true });
 }
 
+/**
+ * True when a changed path, relative to a side's root, is in the link's scope (design decision 21),
+ * or is a folder that leads into it. Changes outside it never need a pass.
+ */
+function inScope(project: Project, relative: string): boolean {
+  const key = relative.split(path.sep).join("/");
+  return project.scope.includes(key) || project.scope.mayContain(key);
+}
+
 /** Runs sync for one linked repo while VS Code has it open. */
 export class SyncController implements vscode.Disposable {
   private scheduler: SyncScheduler | null = null;
@@ -66,11 +75,15 @@ export class SyncController implements vscode.Disposable {
     return true;
   }
 
-  /** The docs folder is in the workspace, where VS Code's own watcher is reliable. */
+  /**
+   * The repo is in the workspace, where VS Code's own watcher is reliable. It watches the repo root,
+   * and only changes in the link's scope start a pass, so editing source code doesn't (REQ-20.0.2).
+   */
   private watchRepo(project: Project): void {
     const root = project.repo.root;
     const notify = (uri: vscode.Uri) => {
-      if (!isIgnoredChange(path.relative(root, uri.fsPath))) this.scheduler?.notify();
+      const relative = path.relative(root, uri.fsPath);
+      if (!isIgnoredChange(relative) && inScope(project, relative)) this.scheduler?.notify();
     };
     const watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(vscode.Uri.file(root), "**/*"),
@@ -92,9 +105,11 @@ export class SyncController implements vscode.Disposable {
     const notify = () => this.scheduler?.notify();
     const native = needsPolling(project.vault.root, detectWsl())
       ? null
-      : startNativeWatch(project.vault.root, notify);
-    const stop =
-      native ?? startPolling(project.vault, { skipFolder: isExcludedFolder, onChange: notify });
+      : startNativeWatch(project.vault.root, notify, undefined, (relative) =>
+          inScope(project, relative),
+        );
+    const skipFolder = (key: string) => isExcludedFolder(key) || !project.scope.mayContain(key);
+    const stop = native ?? startPolling(project.vault, { skipFolder, onChange: notify });
     this.disposables.push({ dispose: stop });
   }
 

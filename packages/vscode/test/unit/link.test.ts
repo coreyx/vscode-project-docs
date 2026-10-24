@@ -140,12 +140,12 @@ describe("folders of notes git ignores (REQ-1.0.6, AC 1.6)", () => {
     const asked: string[] = [];
     const prompter: Prompter = {
       ...acceptingPrompter(asked),
-      ignoredFolders: async (folders) => (asked.push(`ignored:${folders.join(",")}`), ["scratch"]),
+      ignoredFolders: async (folders) => (asked.push(`ignored:${folders.join(",")}`), [...folders]),
     };
     await runLinkFlow(repo, context(prompter).ctx);
-    expect(asked[1]).toBe("ignored:scratch");
+    expect(asked[1]).toBe("ignored:docs/scratch");
     expect(await readLink(repo)).toMatchObject({
-      committed: { settings: { syncIgnored: ["/scratch/"] } },
+      committed: { settings: { syncIgnored: ["/docs/scratch/"] } },
     });
   });
 

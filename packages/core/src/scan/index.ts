@@ -2,3 +2,4 @@
 export * from "./content.js";
 export * from "./ignore.js";
 export * from "./scan.js";
+export * from "./scope.js";

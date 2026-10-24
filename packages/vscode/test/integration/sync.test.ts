@@ -42,6 +42,8 @@ describe("syncing while VS Code is open", function () {
   let repo: string;
   let docs: string;
   let vaultFolder: string;
+  /** The vault's copy of the docs folder: the vault folder mirrors the repo. */
+  let vaultDocs: string;
   let docsApi: ProjectDocsApi;
 
   before(async () => {
@@ -50,8 +52,9 @@ describe("syncing while VS Code is open", function () {
     docs = path.join(repo, "docs");
     const vault = path.join(root, "Vault");
     vaultFolder = path.join(vault, "Projects", "repo");
+    vaultDocs = path.join(vaultFolder, "docs");
     await mkdir(docs, { recursive: true });
-    await mkdir(vault, { recursive: true });
+    await mkdir(vaultDocs, { recursive: true });
     spawnSync("git", ["init", "-q", repo]);
     docsApi = await api();
     await docsApi.link(repo, {
@@ -68,7 +71,7 @@ describe("syncing while VS Code is open", function () {
   });
 
   it("brings an edit made in the vault to the repo within 2 seconds (REQ-3.1)", async () => {
-    await writeFile(path.join(vaultFolder, "from-obsidian.md"), "Written in Obsidian\n");
+    await writeFile(path.join(vaultDocs, "from-obsidian.md"), "Written in Obsidian\n");
     const took = await eventually(
       fileIs(path.join(docs, "from-obsidian.md"), "Written in Obsidian\n"),
       5_000,
@@ -79,7 +82,7 @@ describe("syncing while VS Code is open", function () {
   it("brings an edit made in the repo to the vault within 2 seconds (REQ-3.1)", async () => {
     await writeFile(path.join(docs, "from-vscode.md"), "Written in VS Code\n");
     const took = await eventually(
-      fileIs(path.join(vaultFolder, "from-vscode.md"), "Written in VS Code\n"),
+      fileIs(path.join(vaultDocs, "from-vscode.md"), "Written in VS Code\n"),
       5_000,
     );
     assert.ok(took < 2_000, `took ${took} ms`);
@@ -90,9 +93,9 @@ describe("syncing while VS Code is open", function () {
     assert.equal(docsApi.controller()?.state.state, "paused");
     await writeFile(path.join(docs, "paused.md"), "while paused\n");
     await new Promise((resolve) => setTimeout(resolve, 1_000));
-    assert.equal(await fileIs(path.join(vaultFolder, "paused.md"), "while paused\n")(), false);
+    assert.equal(await fileIs(path.join(vaultDocs, "paused.md"), "while paused\n")(), false);
     await vscode.commands.executeCommand("projectDocs.resume");
-    await eventually(fileIs(path.join(vaultFolder, "paused.md"), "while paused\n"), 5_000);
+    await eventually(fileIs(path.join(vaultDocs, "paused.md"), "while paused\n"), 5_000);
   });
 
   it("adds under 1% CPU while nothing changes (REQ-20.2)", async () => {

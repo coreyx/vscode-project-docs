@@ -34,6 +34,8 @@ describe("privacy in VS Code", function () {
   let repo: string;
   let docs: string;
   let vaultFolder: string;
+  /** The vault's copy of the docs folder: the vault folder mirrors the repo. */
+  let vaultDocs: string;
   let docsApi: ProjectDocsApi;
 
   beforeEach(async () => {
@@ -42,8 +44,9 @@ describe("privacy in VS Code", function () {
     docs = path.join(repo, "docs");
     const vault = path.join(root, "Vault");
     vaultFolder = path.join(vault, "Projects", "repo");
+    vaultDocs = path.join(vaultFolder, "docs");
     await mkdir(docs, { recursive: true });
-    await mkdir(vault, { recursive: true });
+    await mkdir(vaultDocs, { recursive: true });
     spawnSync("git", ["init", "-q", repo]);
     await writeFile(
       path.join(repo, "PRIVATE.md"),
@@ -67,8 +70,8 @@ describe("privacy in VS Code", function () {
   });
 
   it("shows a repo doc's real value and private link in the Problems panel (REQ-13.4)", async () => {
-    await mkdir(path.join(vaultFolder, "private"));
-    await writeFile(path.join(vaultFolder, "private", "server-notes.md"), "s\n");
+    await mkdir(path.join(vaultDocs, "private"));
+    await writeFile(path.join(vaultDocs, "private", "server-notes.md"), "s\n");
     const file = path.join(docs, "guide.md");
     await writeFile(file, `# Guide\n\nssh ${REAL}\n\nSee [notes](private/server-notes.md).\n`);
     const uri = vscode.Uri.file(file);
@@ -88,25 +91,25 @@ describe("privacy in VS Code", function () {
 
   it("holds back a typed hostname, then replaces it and syncs (REQ-13.3)", async () => {
     await writeFile(path.join(docs, "a.md"), "a\n");
-    await eventually(async () => (await text(path.join(vaultFolder, "a.md"))) === "a\n", 5_000);
-    await writeFile(path.join(vaultFolder, "a.md"), `ssh ${REAL}\n`);
+    await eventually(async () => (await text(path.join(vaultDocs, "a.md"))) === "a\n", 5_000);
+    await writeFile(path.join(vaultDocs, "a.md"), `ssh ${REAL}\n`);
     await eventually(
       () => docsApi.problems.problems.some((p) => p.fix === "replace-real-values"),
       5_000,
     );
     assert.equal(await text(path.join(docs, "a.md")), "a\n");
-    const item = docsApi.problems.getChildren().find((i) => i.problem.path === "a.md");
+    const item = docsApi.problems.getChildren().find((i) => i.problem.path === "docs/a.md");
     assert.equal(item?.contextValue, "projectDocs.problem.held-back.replace-real-values");
     assert.ok(!JSON.stringify(docsApi.problems.problems).includes(REAL));
 
     assert.equal(
-      await vscode.commands.executeCommand("projectDocs.replaceRealValues", "a.md", {
+      await vscode.commands.executeCommand("projectDocs.replaceRealValues", "docs/a.md", {
         confirmed: true,
       }),
       true,
     );
     await eventually(async () => (await text(path.join(docs, "a.md"))) === "ssh myhost\n", 5_000);
-    assert.equal(await text(path.join(vaultFolder, "a.md")), "ssh myhost\n");
+    assert.equal(await text(path.join(vaultDocs, "a.md")), "ssh myhost\n");
     await eventually(() => docsApi.problems.problems.length === 0, 5_000);
 
     // Nothing the user can open shows the real value.
@@ -115,13 +118,13 @@ describe("privacy in VS Code", function () {
   });
 
   it("holds a note whose private marker was removed by hand until it's confirmed (REQ-10.4)", async () => {
-    await writeFile(path.join(vaultFolder, "plan.md"), "---\nproject-docs: private\n---\nplan\n");
+    await writeFile(path.join(vaultDocs, "plan.md"), "---\nproject-docs: private\n---\nplan\n");
     await vscode.commands.executeCommand("projectDocs.syncNow");
-    await writeFile(path.join(vaultFolder, "plan.md"), "plan\n");
+    await writeFile(path.join(vaultDocs, "plan.md"), "plan\n");
     // Run the pass directly: the watcher's timing is covered elsewhere, and is slow on CI runners.
     await vscode.commands.executeCommand("projectDocs.syncNow");
     await eventually(() => docsApi.problems.problems.some((p) => p.kind === "was-private"), 10_000);
-    const item = docsApi.problems.getChildren().find((i) => i.problem.path === "plan.md");
+    const item = docsApi.problems.getChildren().find((i) => i.problem.path === "docs/plan.md");
     assert.equal(item?.contextValue, "projectDocs.problem.was-private.confirm-syncable");
     assert.equal(await text(path.join(docs, "plan.md")), null);
 

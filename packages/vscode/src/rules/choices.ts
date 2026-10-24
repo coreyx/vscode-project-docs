@@ -40,12 +40,12 @@ export const RULE_CHOICES: readonly RuleChoice[] = [
 ];
 
 /**
- * The key of a Markdown file inside the docs folder, or null for any other file: rules only apply
- * to synced Markdown files.
+ * The key of a Markdown file inside the repo, or null for any other file: rules only apply to
+ * synced Markdown files. Whether the key is in the link's scope is the caller's to check.
  */
-export function ruleKey(file: string, docsRoot: string, pathApi = path): string | null {
+export function ruleKey(file: string, repoRoot: string, pathApi = path): string | null {
   if (pathApi.extname(file).toLowerCase() !== ".md") return null;
-  const relative = pathApi.relative(docsRoot, file);
+  const relative = pathApi.relative(repoRoot, file);
   if (relative === "" || relative.startsWith("..") || pathApi.isAbsolute(relative)) return null;
   return relative.split(pathApi.sep).join("/");
 }

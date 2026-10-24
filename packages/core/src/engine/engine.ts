@@ -38,7 +38,15 @@ import {
   type CommittedLink,
   type LocalLink,
 } from "../records/index.js";
-import { decodeUtf8, loadIgnoreRules, scan, type StatCache } from "../scan/index.js";
+import {
+  createScope,
+  decodeUtf8,
+  loadIgnoreRules,
+  privateFolderKey,
+  scan,
+  type Scope,
+  type StatCache,
+} from "../scan/index.js";
 import { createNodeSideFs, vaultTrash, type SideFs, type TrashFn } from "../sidefs/index.js";
 import { StateStore, projectStateDir, stateRoot } from "../state/index.js";
 import {
@@ -61,6 +69,11 @@ export interface Project {
   readonly logger: Logger;
   /** The link note's key inside the vault folder, when it's there. */
   readonly linkNoteKey: string | undefined;
+  /**
+   * What the link syncs: the docs folder and the listed root files, by key relative to the repo
+   * root, which the vault folder mirrors (design decisions 2 and 21).
+   */
+  readonly scope: Scope;
   /** The latest PRIVATE.md mapping, refreshed each pass; the logger redacts with it. */
   readonly privateMd: { current: PrivateMdMapping | null };
 }
@@ -115,7 +128,6 @@ export async function openProject(
   }
   const { committed, local } = link;
   const wsl = detectWsl();
-  const docsRoot = path.join(repoRoot, ...committed.docsFolder.split("/").filter(Boolean));
   const [repoInsensitive, vaultInsensitive] = await Promise.all([
     probeCaseInsensitive(repoRoot),
     probeCaseInsensitive(local.vaultFolderPath),
@@ -130,10 +142,11 @@ export async function openProject(
     repoRoot,
     committed,
     local,
+    // The repo side is the whole repo root, narrowed to the link's scope when scanned.
     repo: createNodeSideFs({
       side: "repo",
-      root: docsRoot,
-      isWindowsFs: isWindowsFs(docsRoot, process.platform, wsl),
+      root: repoRoot,
+      isWindowsFs: isWindowsFs(repoRoot, process.platform, wsl),
       caseInsensitive: repoInsensitive,
       trash: options.repoTrash,
     }),
@@ -144,6 +157,7 @@ export async function openProject(
       caseInsensitive: vaultInsensitive,
       trash: vaultTrash(local.vaultRoot),
     }),
+    scope: createScope(committed.docsFolder, []),
     store,
     logger: createFileLogger({
       dir: path.join(store.dir, "log"),
@@ -233,16 +247,16 @@ export async function planPass(
   // edit can change it while the project stays open.
   const syncIgnored = (await readSyncIgnored(project.repoRoot)) ?? committed.settings.syncIgnored;
   const loaded = await loadIgnoreRules(project.repoRoot, committed.docsFolder, syncIgnored);
-  if ("unreadable" in loaded)
-    return { plan: unreadableRulesPlan(committed.docsFolder, loaded.unreadable), problems };
+  if ("unreadable" in loaded) return { plan: unreadableRulesPlan(loaded.unreadable), problems };
   const ignore = loaded.rules;
   const [repo, vault, privateFiles, vaultFiles, confirmations] = await Promise.all([
-    scan(project.repo, { includeAttachments, cache: cache?.repo, ignore }),
+    scan(project.repo, { includeAttachments, cache: cache?.repo, ignore, scope: project.scope }),
     scan(project.vault, {
       includeAttachments,
       linkNoteKey: project.linkNoteKey,
       cache: cache?.vault,
       ignore,
+      scope: project.scope,
     }),
     loadPrivateFiles(local.vaultFolderPath),
     listVault(local.vaultRoot),
@@ -256,7 +270,11 @@ export async function planPass(
     repo,
     vault,
     index,
-    settings: committed.settings,
+    // The private subfolder is relative to the docs folder (decision 21); the planner takes a key.
+    settings: {
+      ...committed.settings,
+      privateSubfolder: privateFolderKey(committed.docsFolder, committed.settings.privateSubfolder),
+    },
     repoTraits: {
       isWindowsFs: project.repo.isWindowsFs,
       caseInsensitive: project.repo.caseInsensitive,
@@ -269,6 +287,7 @@ export async function planPass(
     privateFiles,
     confirmations,
     ignore,
+    scope: project.scope,
     mapping,
     resolver: createResolver({ projectFolder: committed.vaultFolder, files: vaultFiles }),
     readText,
@@ -283,17 +302,14 @@ export async function planPass(
 /**
  * A pass that does nothing but report the rule file that couldn't be read (REQ-3.0.9). Without
  * the rules, an ignored folder such as `node_modules` would be copied, so nothing is synced. The
- * notice's key is the file's path relative to the docs folder, so opening it finds the file.
+ * notice's key is the file's path in the repo, like every key, so opening it finds the file.
  */
-function unreadableRulesPlan(
-  docsFolder: string,
-  unreadable: { file: string; message: string },
-): Plan {
+function unreadableRulesPlan(unreadable: { file: string; message: string }): Plan {
   return {
     actions: [],
     notices: [
       {
-        key: path.posix.relative(docsFolder, unreadable.file),
+        key: unreadable.file,
         code: "ignore-rules-unreadable",
         message: unreadable.message,
       },
@@ -317,7 +333,7 @@ export async function privacyContext(project: Project): Promise<GuardContext> {
     listVault(local.vaultRoot),
   ]);
   return {
-    privateSubfolder: committed.settings.privateSubfolder,
+    privateSubfolder: privateFolderKey(committed.docsFolder, committed.settings.privateSubfolder),
     linkNoteKey: project.linkNoteKey,
     privateFiles,
     allowLinksOutside: committed.settings.allowLinksOutsideProjectFolder,

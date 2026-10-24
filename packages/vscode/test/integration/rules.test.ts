@@ -54,6 +54,8 @@ describe("sync rules", function () {
   let repo: string;
   let docs: string;
   let vaultFolder: string;
+  /** The vault's copy of the docs folder: the vault folder mirrors the repo. */
+  let vaultDocs: string;
   let docsApi: ProjectDocsApi;
 
   beforeEach(async () => {
@@ -62,8 +64,9 @@ describe("sync rules", function () {
     docs = path.join(repo, "docs");
     const vault = path.join(root, "Vault");
     vaultFolder = path.join(vault, "Projects", "repo");
+    vaultDocs = path.join(vaultFolder, "docs");
     await mkdir(docs, { recursive: true });
-    await mkdir(vault, { recursive: true });
+    await mkdir(vaultDocs, { recursive: true });
     spawnSync("git", ["init", "-q", repo]);
     const extension = vscode.extensions.getExtension<ProjectDocsApi>(ID);
     assert.ok(extension);
@@ -116,32 +119,36 @@ describe("sync rules", function () {
 
   it("offers to trash the repo copy of a note made private, and only that (decision 9)", async () => {
     await writeFile(path.join(docs, "c.md"), "C\n");
-    await eventually(() => exists(path.join(vaultFolder, "c.md")), 5_000);
-    await writeFile(path.join(vaultFolder, "c.md"), "---\nproject-docs: private\n---\nC\n");
+    await eventually(() => exists(path.join(vaultDocs, "c.md")), 5_000);
+    await writeFile(path.join(vaultDocs, "c.md"), "---\nproject-docs: private\n---\nC\n");
     await eventually(
       () => docsApi.problems.problems.some((p) => p.kind === "no-longer-synced"),
       5_000,
     );
     // The repo copy stays until the user chooses.
     assert.equal(await readFile(path.join(docs, "c.md"), "utf8"), "C\n");
-    await vscode.commands.executeCommand("projectDocs.trashRepoCopy", "c.md", { confirmed: true });
+    await vscode.commands.executeCommand("projectDocs.trashRepoCopy", "docs/c.md", {
+      confirmed: true,
+    });
     assert.equal(await exists(path.join(docs, "c.md")), false);
-    assert.ok(await exists(path.join(vaultFolder, "c.md")));
+    assert.ok(await exists(path.join(vaultDocs, "c.md")));
     await eventually(() => docsApi.problems.problems.length === 0, 5_000);
   });
 
   it("offers to trash the vault copy of a file made repo-only", async () => {
     const file = path.join(docs, "d.md");
     await writeFile(file, "D\n");
-    await eventually(() => exists(path.join(vaultFolder, "d.md")), 5_000);
+    await eventually(() => exists(path.join(vaultDocs, "d.md")), 5_000);
     await vscode.commands.executeCommand("projectDocs.setRule.repoOnly", vscode.Uri.file(file));
     await eventually(
       () => docsApi.problems.problems.some((p) => p.kind === "repo-only-vault-copy"),
       5_000,
     );
-    assert.ok(await exists(path.join(vaultFolder, "d.md")));
-    await vscode.commands.executeCommand("projectDocs.trashVaultCopy", "d.md", { confirmed: true });
-    assert.equal(await exists(path.join(vaultFolder, "d.md")), false);
+    assert.ok(await exists(path.join(vaultDocs, "d.md")));
+    await vscode.commands.executeCommand("projectDocs.trashVaultCopy", "docs/d.md", {
+      confirmed: true,
+    });
+    assert.equal(await exists(path.join(vaultDocs, "d.md")), false);
     assert.ok(await exists(path.join(vaultFolder, "..", "..", ".trash", "d.md")));
     assert.equal(await readFile(file, "utf8"), "---\nproject-docs: repo-only\n---\nD\n");
     await eventually(() => docsApi.problems.problems.length === 0, 5_000);

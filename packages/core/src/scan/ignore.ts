@@ -26,7 +26,7 @@ interface Level {
   readonly rules: Ignore;
 }
 
-/** What the scanner and planner ask of the rules. Keys are relative to the docs folder. */
+/** What the scanner and planner ask of the rules. Keys are relative to the repo root. */
 export interface IgnoreRules {
   /** True when sync skips this file, or this folder and everything in it. */
   skips(key: string, folder: boolean): boolean;
@@ -80,10 +80,9 @@ function join(...parts: string[]): string {
   return parts.filter(Boolean).join("/");
 }
 
-/** Builds the matcher from the levels found, the docs folder and the exceptions. */
+/** Builds the matcher from the levels found and the exceptions. */
 function matcher(
   levels: readonly Level[],
-  docsFolder: string,
   syncIgnored: Ignore,
   exceptions: readonly string[],
 ): IgnoreRules {
@@ -107,8 +106,8 @@ function matcher(
     }
     return verdict(repoPath, folder);
   };
-  const gitIgnores = (key: string, folder: boolean) =>
-    gitIgnoresRepoPath(join(docsFolder, key), folder);
+  // Keys are paths in the repo (design decision 2), so they're matched as they are.
+  const gitIgnores = gitIgnoresRepoPath;
   const excepted = (key: string, folder: boolean) =>
     exceptions.length > 0 && syncIgnored.test(folder ? `${key}/` : key).ignored;
   const skips = (key: string, folder: boolean) =>
@@ -167,13 +166,10 @@ export async function loadIgnoreRules(
       const base = segments.slice(0, i).join("/");
       await add(base, path.join(repoRoot, ...segments.slice(0, i), ".gitignore"));
     }
-    const rules = () => matcher(levels, docs, exceptionRules, exceptions);
+    const rules = () => matcher(levels, exceptionRules, exceptions);
+    // Keys are repo-relative, starting at the docs folder (`""` for a repo-root link).
     const walk = async (key: string): Promise<void> => {
-      const folder = path.join(
-        repoRoot,
-        ...docs.split("/").filter(Boolean),
-        ...key.split("/").filter(Boolean),
-      );
+      const folder = path.join(repoRoot, ...key.split("/").filter(Boolean));
       let entries;
       try {
         entries = await readdir(folder, { withFileTypes: true });
@@ -186,11 +182,11 @@ export async function loadIgnoreRules(
         if (!entry.isDirectory() || NOT_SEARCHED.has(entry.name)) continue;
         const child = join(key, entry.name);
         if (rules().skipsFolder(child)) continue;
-        await add(join(docs, child), path.join(folder, entry.name, ".gitignore"));
+        await add(child, path.join(folder, entry.name, ".gitignore"));
         await walk(child);
       }
     };
-    await walk("");
+    await walk(docs);
   } catch (error) {
     return {
       unreadable: {
@@ -199,7 +195,7 @@ export async function loadIgnoreRules(
       },
     };
   }
-  return { rules: matcher(levels, docs, exceptionRules, exceptions) };
+  return { rules: matcher(levels, exceptionRules, exceptions) };
 }
 
 /** True when a folder holds a Markdown file somewhere inside, without following symbolic links. */
@@ -218,7 +214,8 @@ async function holdsMarkdown(folder: string): Promise<boolean> {
 
 /**
  * The folders inside the docs folder that git ignores and that hold notes, other than
- * `node_modules`, by key, for the question asked when linking (REQ-1.0.6). Only the outermost
+ * `node_modules`, by key (relative to the repo root), for the question asked when linking
+ * (REQ-1.0.6). Only the outermost
  * ignored folder of each branch is listed, since bringing it back brings back what's inside.
  * Returns none when the rules can't be read: the first sync then stops and reports the file.
  */
@@ -229,10 +226,10 @@ export async function findIgnoredNoteFolders(
   const loaded = await loadIgnoreRules(repoRoot, docsFolder, []);
   if ("unreadable" in loaded) return [];
   const { rules } = loaded;
-  const docs = path.join(repoRoot, ...docsFolder.split("/").filter(Boolean));
+  const docs = docsFolder.split("/").filter(Boolean).join("/");
   const found: string[] = [];
   const walk = async (key: string): Promise<void> => {
-    const folder = path.join(docs, ...key.split("/").filter(Boolean));
+    const folder = path.join(repoRoot, ...key.split("/").filter(Boolean));
     const entries = await readdir(folder, { withFileTypes: true }).catch(() => []);
     for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
       if (!entry.isDirectory() || NOT_SEARCHED.has(entry.name)) continue;
@@ -241,6 +238,6 @@ export async function findIgnoredNoteFolders(
       else if (await holdsMarkdown(path.join(folder, entry.name))) found.push(child);
     }
   };
-  await walk("");
+  await walk(docs);
   return found;
 }

@@ -55,7 +55,7 @@ describe("linking", () => {
     const result = await (await api()).link(repo, prompter);
     assert.deepEqual(result, { outcome: "linked", repoRoot: repo });
     assert.ok(prompts <= 4, `${prompts} prompts`);
-    const synced = await readFile(path.join(vault, "Projects", "repo", "guide.md"), "utf8");
+    const synced = await readFile(path.join(vault, "Projects", "repo", "docs", "guide.md"), "utf8");
     assert.equal(synced.replace(/\r\n/g, "\n"), "# Guide\n");
   });
 
@@ -75,14 +75,14 @@ describe("linking", () => {
       };
       const docs = await api();
       await docs.link(repo, prompter);
-      assert.deepEqual(offered, ["scratch"]);
+      assert.deepEqual(offered, ["docs/scratch"]);
       const read = (key: string) =>
         readFile(path.join(vault, "Projects", "repo", ...key.split("/")), "utf8").then(
           (t) => t.replace(/\r\n/g, "\n"),
           () => null,
         );
-      assert.equal(await read("guide.md"), "# Guide\n");
-      assert.equal(await read("scratch/idea.md"), keep ? "idea\n" : null);
+      assert.equal(await read("docs/guide.md"), "# Guide\n");
+      assert.equal(await read("docs/scratch/idea.md"), keep ? "idea\n" : null);
       await docs.unlink(repo);
     });
   }

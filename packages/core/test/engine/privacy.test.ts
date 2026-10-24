@@ -33,7 +33,7 @@ describe("the real-value fix (REQ-13.3)", () => {
   it("replaces the hostname with its placeholder, after which the note syncs", async () => {
     await writeFile(path.join(linked.docs, "a.md"), "a\n");
     await syncOnce(project);
-    await writeFile(path.join(linked.vaultFolder, "a.md"), "ssh DESK-FAKE01\n");
+    await writeFile(path.join(linked.vaultDocs, "a.md"), "ssh DESK-FAKE01\n");
     const held = await syncOnce(project);
     expect(held.outcome === "synced" && held.plan.notices[0]).toMatchObject({
       code: "held-back",
@@ -41,32 +41,29 @@ describe("the real-value fix (REQ-13.3)", () => {
     });
     expect(await read(path.join(linked.docs, "a.md"))).toBe("a\n");
 
-    expect(await replaceRealValuesInVault(project, "a.md")).toBe(true);
+    expect(await replaceRealValuesInVault(project, "docs/a.md")).toBe(true);
     await syncOnce(project);
     expect(await read(path.join(linked.docs, "a.md"))).toBe("ssh myhost\n");
-    expect(await read(path.join(linked.vaultFolder, "a.md"))).toBe("ssh myhost\n");
+    expect(await read(path.join(linked.vaultDocs, "a.md"))).toBe("ssh myhost\n");
     expect(await read(path.join(project.store.dir, "log", LOG_FILE))).not.toContain("DESK-FAKE01");
   });
 
   it("reports when there's nothing it can replace", async () => {
-    await writeFile(path.join(linked.vaultFolder, "b.md"), "DESK-FAKE01x\n");
-    expect(await replaceRealValuesInVault(project, "b.md")).toBe(false);
+    await writeFile(path.join(linked.vaultDocs, "b.md"), "DESK-FAKE01x\n");
+    expect(await replaceRealValuesInVault(project, "docs/b.md")).toBe(false);
     expect(await replaceRealValuesInVault(project, "missing.md")).toBe(false);
   });
 });
 
 describe("privacyContext (REQ-13.0.5)", () => {
   it("knows the vault's private notes, for checking repo docs", async () => {
-    await mkdir(path.join(linked.vaultFolder, "private"));
-    await writeFile(path.join(linked.vaultFolder, "private", "server-notes.md"), "s\n");
-    await writeFile(
-      path.join(linked.vaultFolder, "marked.md"),
-      "---\nproject-docs: private\n---\n",
-    );
+    await mkdir(path.join(linked.vaultDocs, "private"));
+    await writeFile(path.join(linked.vaultDocs, "private", "server-notes.md"), "s\n");
+    await writeFile(path.join(linked.vaultDocs, "marked.md"), "---\nproject-docs: private\n---\n");
     await syncOnce(project);
     const ctx = await privacyContext(project);
     const text = "[a](private/server-notes.md) [b](marked.md) DESK-FAKE01\n";
-    expect(checkRepoDoc(text, "guide.md", ctx).map((f) => f.code)).toEqual([
+    expect(checkRepoDoc(text, "docs/guide.md", ctx).map((f) => f.code)).toEqual([
       "links-private",
       "links-private",
       "real-value",

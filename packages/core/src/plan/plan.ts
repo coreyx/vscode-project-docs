@@ -149,6 +149,7 @@ class Planner {
         this.notices.push({ key: skipped.key, code: "scan-skipped", message: skipped.message });
       }
     }
+    this.forgetOutOfScope();
     this.setAsideIgnored();
     await this.readChangedVaultNotes();
     this.excludeCaseClashes();
@@ -166,6 +167,21 @@ class Planner {
       await this.planKey(key);
     }
     return { actions: this.actions, notices: this.notices, bulk: this.bulkCheck() };
+  }
+
+  /**
+   * Forgets index entries that are out of scope (design decision 21), as when a name is removed
+   * from `rootFiles`, before rename detection could take their absence from both snapshots for a
+   * move. Neither copy is touched, and nothing is reported: the user changed the setting.
+   */
+  private forgetOutOfScope(): void {
+    const scope = this.input.scope;
+    if (!scope) return;
+    for (const key of Object.keys(this.input.index.entries)) {
+      if (scope.includes(key)) continue;
+      this.handled.add(key);
+      this.record(key, null);
+    }
   }
 
   /**

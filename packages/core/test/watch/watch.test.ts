@@ -86,9 +86,9 @@ describe("startPolling (REQ-4.0.2)", () => {
     const stop = startPolling(fs, { intervalMs: 50, onChange: (keys) => seen.push(keys) });
     try {
       await new Promise((resolve) => setTimeout(resolve, 80));
-      await writeFile(path.join(linked.vaultFolder, "new.md"), "x");
+      await writeFile(path.join(linked.vaultDocs, "new.md"), "x");
       await eventually(async () => seen.length > 0, 2_000);
-      expect(seen[0]).toEqual(["new.md"]);
+      expect(seen[0]).toEqual(["docs/new.md"]);
     } finally {
       stop();
     }
@@ -131,10 +131,10 @@ describe("SyncScheduler", () => {
     const s = await scheduler("w1");
     await s.start();
     expect(
-      await fileIs(path.join(linked.vaultFolder, "edited-while-closed.md"), "offline edit\n")(),
+      await fileIs(path.join(linked.vaultDocs, "edited-while-closed.md"), "offline edit\n")(),
     ).toBe(true);
 
-    await writeFile(path.join(linked.vaultFolder, "from-obsidian.md"), "hello\n");
+    await writeFile(path.join(linked.vaultDocs, "from-obsidian.md"), "hello\n");
     s.notify();
     const took = await eventually(
       fileIs(path.join(linked.docs, "from-obsidian.md"), "hello\n"),
@@ -149,7 +149,7 @@ describe("SyncScheduler", () => {
     await s.start();
     await writeFile(path.join(linked.docs, "unreported.md"), "missed by the watcher\n");
     await eventually(
-      fileIs(path.join(linked.vaultFolder, "unreported.md"), "missed by the watcher\n"),
+      fileIs(path.join(linked.vaultDocs, "unreported.md"), "missed by the watcher\n"),
       3_000,
     );
   });
@@ -177,7 +177,7 @@ describe("SyncScheduler", () => {
     await writeFile(path.join(linked.docs, "after.md"), "x\n");
     await s.syncNow();
     expect(s.state.state).toBe("elsewhere");
-    expect(await fileIs(path.join(linked.vaultFolder, "after.md"), "x\n")()).toBe(false);
+    expect(await fileIs(path.join(linked.vaultDocs, "after.md"), "x\n")()).toBe(false);
     if (isLockHandle(thief)) await thief.release();
   });
 
@@ -201,9 +201,9 @@ describe("SyncScheduler", () => {
     await writeFile(path.join(linked.docs, "while-paused.md"), "p\n");
     s.notify();
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(await fileIs(path.join(linked.vaultFolder, "while-paused.md"), "p\n")()).toBe(false);
+    expect(await fileIs(path.join(linked.vaultDocs, "while-paused.md"), "p\n")()).toBe(false);
     await s.resume();
-    expect(await fileIs(path.join(linked.vaultFolder, "while-paused.md"), "p\n")()).toBe(true);
+    expect(await fileIs(path.join(linked.vaultDocs, "while-paused.md"), "p\n")()).toBe(true);
   });
 
   it("waits at the bulk guard until told to proceed or cancel (REQ-7)", async () => {
@@ -214,15 +214,15 @@ describe("SyncScheduler", () => {
     for (let i = 0; i < 25; i++) await rm(path.join(linked.docs, `d${i}.md`));
     await s.syncNow();
     expect(s.state.state).toBe("bulk");
-    expect(await fileIs(path.join(linked.vaultFolder, "d0.md"), "0\n")()).toBe(true);
+    expect(await fileIs(path.join(linked.vaultDocs, "d0.md"), "0\n")()).toBe(true);
     await s.cancelBulk();
     expect(s.state).toEqual({ state: "idle" });
     await s.syncNow({ allowBulk: true });
-    expect(await fileIs(path.join(linked.vaultFolder, "d0.md"), "0\n")()).toBe(false);
+    expect(await fileIs(path.join(linked.vaultDocs, "d0.md"), "0\n")()).toBe(false);
   });
 
   it("reports attention when a pass leaves something for the user", async () => {
-    await writeFile(path.join(linked.vaultFolder, "bad.md"), "---\nproject-docs: typo\n---\n");
+    await writeFile(path.join(linked.vaultDocs, "bad.md"), "---\nproject-docs: typo\n---\n");
     const s = await scheduler("w1");
     await s.start();
     expect(s.state).toEqual({ state: "attention", count: 1 });
@@ -236,6 +236,6 @@ describe("SyncScheduler", () => {
     await writeFile(path.join(linked.docs, "two.md"), "2\n");
     const b = s.syncNow();
     await Promise.all([a, b]);
-    expect(await fileIs(path.join(linked.vaultFolder, "two.md"), "2\n")()).toBe(true);
+    expect(await fileIs(path.join(linked.vaultDocs, "two.md"), "2\n")()).toBe(true);
   });
 });

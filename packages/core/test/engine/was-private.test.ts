@@ -28,9 +28,9 @@ const unmarked = "plan\n";
 
 /** Syncs a private note once, then removes its marker by hand. */
 async function unmarkByHand(): Promise<void> {
-  await writeFile(path.join(linked.vaultFolder, "plan.md"), marked);
+  await writeFile(path.join(linked.vaultDocs, "plan.md"), marked);
   await syncOnce(project);
-  await writeFile(path.join(linked.vaultFolder, "plan.md"), unmarked);
+  await writeFile(path.join(linked.vaultDocs, "plan.md"), unmarked);
 }
 
 describe("a note that stops being private (REQ-10.0.7, REQ-10.4)", () => {
@@ -38,7 +38,7 @@ describe("a note that stops being private (REQ-10.0.7, REQ-10.4)", () => {
     await unmarkByHand();
     const held = await syncOnce(project);
     expect(held.outcome === "synced" && held.plan.notices).toMatchObject([
-      { key: "plan.md", code: "was-private", fix: "confirm-syncable" },
+      { key: "docs/plan.md", code: "was-private", fix: "confirm-syncable" },
     ]);
     expect(await read(path.join(linked.docs, "plan.md"))).toBeNull();
     const status = parseStatusFile(await read(statusFilePath(linked.vaultFolder)));
@@ -48,7 +48,7 @@ describe("a note that stops being private (REQ-10.0.7, REQ-10.4)", () => {
     await syncOnce(project);
     expect(await read(path.join(linked.docs, "plan.md"))).toBeNull();
 
-    expect(await confirmSyncable(project, "plan.md")).toBe(true);
+    expect(await confirmSyncable(project, "docs/plan.md")).toBe(true);
     await syncOnce(project);
     expect(await read(path.join(linked.docs, "plan.md"))).toBe(unmarked);
     expect(parseStatusFile(await read(statusFilePath(linked.vaultFolder)))?.items).toEqual([]);
@@ -59,7 +59,7 @@ describe("a note that stops being private (REQ-10.0.7, REQ-10.4)", () => {
     await mkdir(path.dirname(confirmationsPath(linked.vaultFolder)), { recursive: true });
     await writeFile(
       confirmationsPath(linked.vaultFolder),
-      serializeConfirmations([{ path: "plan.md", sha256: markdownHash(unmarked) }]),
+      serializeConfirmations([{ path: "docs/plan.md", sha256: markdownHash(unmarked) }]),
     );
     await syncOnce(project);
     expect(await read(path.join(linked.docs, "plan.md"))).toBe(unmarked);
@@ -74,12 +74,12 @@ describe("a note that stops being private (REQ-10.0.7, REQ-10.4)", () => {
   });
 
   it("is held when an unmarked file is moved out of the private folder (REQ-10.5)", async () => {
-    await mkdir(path.join(linked.vaultFolder, "private"));
-    await writeFile(path.join(linked.vaultFolder, "private", "plan.md"), unmarked);
+    await mkdir(path.join(linked.vaultDocs, "private"));
+    await writeFile(path.join(linked.vaultDocs, "private", "plan.md"), unmarked);
     await syncOnce(project);
     await rename(
-      path.join(linked.vaultFolder, "private", "plan.md"),
-      path.join(linked.vaultFolder, "plan.md"),
+      path.join(linked.vaultDocs, "private", "plan.md"),
+      path.join(linked.vaultDocs, "plan.md"),
     );
     const held = await syncOnce(project);
     expect(held.outcome === "synced" && held.plan.notices.map((n) => n.code)).toEqual([
@@ -89,9 +89,9 @@ describe("a note that stops being private (REQ-10.0.7, REQ-10.4)", () => {
   });
 
   it("can't be confirmed when it isn't waiting", async () => {
-    await writeFile(path.join(linked.vaultFolder, "a.md"), "a\n");
+    await writeFile(path.join(linked.vaultDocs, "a.md"), "a\n");
     await syncOnce(project);
-    expect(await confirmSyncable(project, "a.md")).toBe(false);
+    expect(await confirmSyncable(project, "docs/a.md")).toBe(false);
     expect(await confirmSyncable(project, "missing.md")).toBe(false);
   });
 });

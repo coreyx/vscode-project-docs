@@ -9,6 +9,7 @@ import type { SideFs, Side } from "../sidefs/index.js";
 import { isTempName } from "../sidefs/index.js";
 import { decodeUtf8, detectLineEnding, markdownHash, sha256, type LineEnding } from "./content.js";
 import type { IgnoreRules } from "./ignore.js";
+import type { Scope } from "./scope.js";
 
 /** Markdown files larger than this are skipped and reported (REQ-20.0.3). */
 export const MAX_MARKDOWN_BYTES = 5 * 1024 * 1024;
@@ -83,6 +84,11 @@ export interface ScanOptions {
    * out of both snapshots or neither. Omitted, nothing is ignored beyond the fixed exclusions.
    */
   readonly ignore?: IgnoreRules | undefined;
+  /**
+   * What the link syncs (design decision 21), applied to both sides by key. Omitted, everything
+   * under the side's root is in scope.
+   */
+  readonly scope?: Scope | undefined;
 }
 
 /** Scans one side into a snapshot. */
@@ -91,11 +97,14 @@ export async function scan(fs: SideFs, options: ScanOptions): Promise<Snapshot> 
   const skipped: SkippedFile[] = [];
   const seen = new Set<string>();
 
-  const ignore = options.ignore;
-  const skipFolder = (key: string) => isExcludedFolder(key) || ignore?.skipsFolder(key) === true;
+  const { ignore, scope } = options;
+  const skipFolder = (key: string) =>
+    isExcludedFolder(key) || scope?.mayContain(key) === false || ignore?.skipsFolder(key) === true;
   for await (const file of fs.list(skipFolder)) {
-    // Ignored files are left out silently, like the never-synced names: they aren't problems.
-    if (isNeverSynced(file.key) || ignore?.skips(file.key, false)) continue;
+    // Ignored and out-of-scope files are left out silently, like the never-synced names: they
+    // aren't problems, and a vault note outside the scope simply stays in the vault (REQ-22.0.3).
+    if (isNeverSynced(file.key) || scope?.includes(file.key) === false) continue;
+    if (ignore?.skips(file.key, false)) continue;
     if (file.kind === "symlink") {
       skipped.push({
         key: file.key,

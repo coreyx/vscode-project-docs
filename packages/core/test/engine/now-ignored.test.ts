@@ -31,7 +31,7 @@ afterEach(async () => {
 
 const read = (file: string) => readFile(file, "utf8").catch(() => null);
 const repoDoc = (key: string) => path.join(linked.docs, ...key.split("/"));
-const vaultNote = (key: string) => path.join(linked.vaultFolder, ...key.split("/"));
+const vaultNote = (key: string) => path.join(linked.vaultDocs, ...key.split("/"));
 
 /** The link file's `syncIgnored` patterns. */
 async function syncIgnored(): Promise<unknown> {
@@ -73,7 +73,7 @@ describe("notes that became ignored (REQ-3.0.8, AC 3.7)", () => {
   it("are reported once for the folder, in status.json, and each copy keeps its own edit", async () => {
     await draftsBecomeIgnored();
     expect(await problems()).toEqual([
-      { kind: "now-ignored", path: "drafts/", fix: "sync-ignored" },
+      { kind: "now-ignored", path: "docs/drafts/", fix: "sync-ignored" },
     ]);
     expect(await read(repoDoc("drafts/a.md"))).toBe("a\n");
     expect(await read(vaultNote("drafts/b.md"))).toBe("b\n");
@@ -84,9 +84,9 @@ describe("notes that became ignored (REQ-3.0.8, AC 3.7)", () => {
 
   it("sync again from their base with Keep syncing it, bringing each side's edit across", async () => {
     await draftsBecomeIgnored();
-    expect(await keepSyncingIgnored(project, "drafts/")).toBe(true);
-    expect(await syncIgnored()).toEqual(["/drafts/"]);
-    expect(await keepSyncingIgnored(project, "drafts/")).toBe(false);
+    expect(await keepSyncingIgnored(project, "docs/drafts/")).toBe(true);
+    expect(await syncIgnored()).toEqual(["/docs/drafts/"]);
+    expect(await keepSyncingIgnored(project, "docs/drafts/")).toBe(false);
     await syncOnce(project);
     expect(await read(repoDoc("drafts/a.md"))).toBe("a, edited in the vault\n");
     expect(await read(vaultNote("drafts/b.md"))).toBe("b, edited in the repo\n");
@@ -95,8 +95,8 @@ describe("notes that became ignored (REQ-3.0.8, AC 3.7)", () => {
 
   it("stop being reported with Stop syncing it, and neither copy changes", async () => {
     await draftsBecomeIgnored();
-    expect(await stopSyncingIgnored(project, "drafts/")).toBe(true);
-    expect(await stopSyncingIgnored(project, "drafts/")).toBe(false);
+    expect(await stopSyncingIgnored(project, "docs/drafts/")).toBe(true);
+    expect(await stopSyncingIgnored(project, "docs/drafts/")).toBe(false);
     await syncOnce(project);
     expect(await problems()).toEqual([]);
     expect(await read(repoDoc("drafts/a.md"))).toBe("a\n");
@@ -106,17 +106,17 @@ describe("notes that became ignored (REQ-3.0.8, AC 3.7)", () => {
 
   it("carry out a Keep syncing it choice made in Obsidian, once however often it's read", async () => {
     await draftsBecomeIgnored();
-    await choose([{ path: "drafts/", choice: "sync" }]);
+    await choose([{ path: "docs/drafts/", choice: "sync" }]);
     await syncOnce(project);
     expect(await read(repoDoc("drafts/a.md"))).toBe("a, edited in the vault\n");
     await syncOnce(project);
-    expect(await syncIgnored()).toEqual(["/drafts/"]);
+    expect(await syncIgnored()).toEqual(["/docs/drafts/"]);
     expect(await problems()).toEqual([]);
   });
 
   it("carry out a Stop syncing it choice made in Obsidian, once however often it's read", async () => {
     await draftsBecomeIgnored();
-    await choose([{ path: "drafts/", choice: "stop" }]);
+    await choose([{ path: "docs/drafts/", choice: "stop" }]);
     await syncOnce(project);
     await syncOnce(project);
     expect(await problems()).toEqual([]);
@@ -137,10 +137,10 @@ describe("ignored-choices.json", () => {
   it("round-trips, sorted by path, and drops entries it doesn't understand", () => {
     const text = serializeIgnoredChoices([
       { path: "z.md", choice: "stop" },
-      { path: "drafts/", choice: "sync" },
+      { path: "docs/drafts/", choice: "sync" },
     ]);
     expect(parseIgnoredChoices(text)).toEqual([
-      { path: "drafts/", choice: "sync" },
+      { path: "docs/drafts/", choice: "sync" },
       { path: "z.md", choice: "stop" },
     ]);
     expect(

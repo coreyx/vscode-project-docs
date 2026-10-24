@@ -99,11 +99,12 @@ export class RuleControls implements vscode.Disposable {
     );
   }
 
-  /** The key of a file the rule controls apply to, or null. */
+  /** The key of a file the rule controls apply to, or null: a synced Markdown file in scope. */
   private keyOf(uri: vscode.Uri | undefined): string | null {
     const project = this.controller()?.linkedProject;
     if (!project || !uri || uri.scheme !== "file") return null;
-    return ruleKey(uri.fsPath, project.repo.root);
+    const key = ruleKey(uri.fsPath, project.repo.root);
+    return key !== null && project.scope.includes(key) ? key : null;
   }
 
   /** The status bar item's text while it's shown, for tests. */

@@ -8,6 +8,7 @@ import * as vscode from "vscode";
 import {
   checkRepoDoc,
   decodeUtf8,
+  inNodeModules,
   isExcludedFolder,
   isMarkdown,
   privacyContext,
@@ -64,8 +65,12 @@ export class PrivacyDiagnostics implements vscode.Disposable {
     }
     this.ctx = await privacyContext(project);
     const seen = new Set<string>();
-    for await (const entry of project.repo.list(isExcludedFolder)) {
-      if (entry.kind !== "file" || !isMarkdown(entry.key)) continue;
+    // Only what the link syncs: the docs folder and the root files (design decision 21).
+    const skipFolder = (key: string) =>
+      isExcludedFolder(key) || inNodeModules(key) || !project.scope.mayContain(key);
+    for await (const entry of project.repo.list(skipFolder)) {
+      if (entry.kind !== "file" || !isMarkdown(entry.key) || !project.scope.includes(entry.key))
+        continue;
       seen.add(entry.key);
       const cached = this.texts.get(entry.key);
       if (cached?.size !== entry.size || cached.mtimeMs !== entry.mtimeMs) {
@@ -91,6 +96,7 @@ export class PrivacyDiagnostics implements vscode.Disposable {
     if (!project || !this.ctx || document.uri.scheme !== "file") return;
     const key = path.relative(project.repo.root, document.uri.fsPath).split(path.sep).join("/");
     if (key.startsWith("..") || path.isAbsolute(key) || !isMarkdown(key)) return;
+    if (!project.scope.includes(key)) return;
     if (this.typing !== null) clearTimeout(this.typing);
     this.typing = setTimeout(() => {
       this.typing = null;

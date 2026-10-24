@@ -33,6 +33,8 @@ describe("notes that became ignored, in VS Code", function () {
   let repo: string;
   let docs: string;
   let vaultFolder: string;
+  /** The vault's copy of the docs folder: the vault folder mirrors the repo. */
+  let vaultDocs: string;
   let docsApi: ProjectDocsApi;
 
   beforeEach(async () => {
@@ -41,8 +43,9 @@ describe("notes that became ignored, in VS Code", function () {
     docs = path.join(repo, "docs");
     const vault = path.join(root, "Vault");
     vaultFolder = path.join(vault, "Projects", "repo");
+    vaultDocs = path.join(vaultFolder, "docs");
     await mkdir(path.join(docs, "drafts"), { recursive: true });
-    await mkdir(vault, { recursive: true });
+    await mkdir(vaultDocs, { recursive: true });
     spawnSync("git", ["init", "-q", repo]);
     // Enough other docs that bringing an edit across stays under the bulk guard's threshold.
     for (let i = 0; i < 10; i++) await writeFile(path.join(docs, `guide-${i}.md`), `guide ${i}\n`);
@@ -56,11 +59,11 @@ describe("notes that became ignored, in VS Code", function () {
       vaultFolder: async (value) => value,
     });
     await eventually(() => docsApi.controller()?.state.state === "idle", 10_000);
-    assert.equal(await text(path.join(vaultFolder, "drafts", "idea.md")), "idea\n");
+    assert.equal(await text(path.join(vaultDocs, "drafts", "idea.md")), "idea\n");
 
     // git begins to ignore the folder, and the note is edited in the vault meanwhile.
     await writeFile(path.join(repo, ".gitignore"), "/docs/drafts/\n.project-docs.local.json\n");
-    await writeFile(path.join(vaultFolder, "drafts", "idea.md"), "idea, from the vault\n");
+    await writeFile(path.join(vaultDocs, "drafts", "idea.md"), "idea, from the vault\n");
     // Run the pass directly: the watcher's timing is covered elsewhere, and is slow on CI runners.
     await vscode.commands.executeCommand("projectDocs.syncNow");
     await eventually(() => docsApi.problems.problems.some((p) => p.kind === "now-ignored"), 10_000);
@@ -73,7 +76,8 @@ describe("notes that became ignored, in VS Code", function () {
   });
 
   /** The view's item for the ignored folder. */
-  const folderItem = () => docsApi.problems.getChildren().find((i) => i.problem.path === "drafts/");
+  const folderItem = () =>
+    docsApi.problems.getChildren().find((i) => i.problem.path === "docs/drafts/");
 
   it("shows one problem for the folder, and Keep Syncing It brings the edit across (AC 3.7)", async () => {
     const item = folderItem();
@@ -85,7 +89,7 @@ describe("notes that became ignored, in VS Code", function () {
       true,
     );
     const committed = JSON.parse((await text(path.join(repo, ".project-docs.json"))) ?? "{}");
-    assert.deepEqual(committed.settings.syncIgnored, ["/drafts/"]);
+    assert.deepEqual(committed.settings.syncIgnored, ["/docs/drafts/"]);
     await eventually(
       async () => (await text(path.join(docs, "drafts", "idea.md"))) === "idea, from the vault\n",
       5_000,
@@ -100,6 +104,6 @@ describe("notes that became ignored, in VS Code", function () {
     );
     await eventually(() => docsApi.problems.problems.length === 0, 5_000);
     assert.equal(await text(path.join(docs, "drafts", "idea.md")), "idea\n");
-    assert.equal(await text(path.join(vaultFolder, "drafts", "idea.md")), "idea, from the vault\n");
+    assert.equal(await text(path.join(vaultDocs, "drafts", "idea.md")), "idea, from the vault\n");
   });
 });

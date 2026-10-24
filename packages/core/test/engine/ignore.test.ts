@@ -46,15 +46,13 @@ describe("linking the repo root (REQ-3.0.7, AC 3.6)", () => {
     const outcome = await syncOnce(project);
     expect(outcome.outcome).toBe("synced");
 
-    expect(await read(path.join(linked.vaultFolder, "README.md"))).toBe("# Readme\n");
-    expect(
-      await read(path.join(linked.vaultFolder, "node_modules", "pkg", "README.md")),
-    ).toBeNull();
-    expect(await read(path.join(linked.vaultFolder, "build", "notes.md"))).toBeNull();
+    expect(await read(path.join(linked.vaultDocs, "README.md"))).toBe("# Readme\n");
+    expect(await read(path.join(linked.vaultDocs, "node_modules", "pkg", "README.md"))).toBeNull();
+    expect(await read(path.join(linked.vaultDocs, "build", "notes.md"))).toBeNull();
     expect(await read(path.join(linked.repo, "plan.md"))).toBe("plan\n");
     expect(await read(path.join(linked.repo, "build", "from-vault.md"))).toBeNull();
     // Both copies of an ignored path stay where they are.
-    expect(await read(path.join(linked.vaultFolder, "build", "from-vault.md"))).toBe("vault\n");
+    expect(await read(path.join(linked.vaultDocs, "build", "from-vault.md"))).toBe("vault\n");
     expect(await read(path.join(linked.repo, "build", "notes.md"))).toBe("# Built\n");
   });
 
@@ -65,18 +63,16 @@ describe("linking the repo root (REQ-3.0.7, AC 3.6)", () => {
     });
     await files(linked.repo, { ...REPO_FILES, "diagram.svg": "<svg/>\n" });
     await syncOnce(project);
-    expect(await read(path.join(linked.vaultFolder, "diagram.svg"))).toBe("<svg/>\n");
-    expect(await read(path.join(linked.vaultFolder, "node_modules", "pkg", "index.js"))).toBeNull();
-    expect(await read(path.join(linked.vaultFolder, "build", "out.js"))).toBeNull();
+    expect(await read(path.join(linked.vaultDocs, "diagram.svg"))).toBe("<svg/>\n");
+    expect(await read(path.join(linked.vaultDocs, "node_modules", "pkg", "index.js"))).toBeNull();
+    expect(await read(path.join(linked.vaultDocs, "build", "out.js"))).toBeNull();
   });
 
   it("leaves node_modules out of a repo with no .gitignore", async () => {
     const { linked, project } = await link({ docsFolder: "" });
     await files(linked.repo, { "node_modules/pkg/README.md": "# A package\n" });
     await syncOnce(project);
-    expect(
-      await read(path.join(linked.vaultFolder, "node_modules", "pkg", "README.md")),
-    ).toBeNull();
+    expect(await read(path.join(linked.vaultDocs, "node_modules", "pkg", "README.md"))).toBeNull();
   });
 });
 
@@ -88,12 +84,10 @@ describe("syncIgnored (AC 3.9)", () => {
     });
     await files(linked.repo, { ...REPO_FILES, "scratch/idea.md": "idea\n" });
     await syncOnce(project);
-    expect(await read(path.join(linked.vaultFolder, "scratch", "idea.md"))).toBe("idea\n");
-    expect(
-      await read(path.join(linked.vaultFolder, "node_modules", "pkg", "README.md")),
-    ).toBeNull();
+    expect(await read(path.join(linked.vaultDocs, "scratch", "idea.md"))).toBe("idea\n");
+    expect(await read(path.join(linked.vaultDocs, "node_modules", "pkg", "README.md"))).toBeNull();
 
-    await writeFile(path.join(linked.vaultFolder, "scratch", "idea.md"), "idea, edited\n");
+    await writeFile(path.join(linked.vaultDocs, "scratch", "idea.md"), "idea, edited\n");
     await syncOnce(project);
     expect(await read(path.join(linked.repo, "scratch", "idea.md"))).toBe("idea, edited\n");
   });
@@ -107,10 +101,10 @@ describe("a .gitignore that can't be read (REQ-3.0.9, AC 3.8)", () => {
     await mkdir(path.join(linked.docs, "sub", ".gitignore"), { recursive: true });
     const outcome = await syncOnce(project);
     expect(outcome.outcome === "synced" && outcome.plan.actions).toEqual([]);
-    expect(await read(path.join(linked.vaultFolder, "guide.md"))).toBeNull();
+    expect(await read(path.join(linked.vaultDocs, "guide.md"))).toBeNull();
     const status = parseStatusFile(await read(statusFilePath(linked.vaultFolder)));
     expect(status?.items).toMatchObject([
-      { kind: "ignore-rules-unreadable", path: "sub/.gitignore" },
+      { kind: "ignore-rules-unreadable", path: "docs/sub/.gitignore" },
     ]);
     expect(status?.items[0]?.message).toContain("docs/sub/.gitignore");
   });
@@ -121,13 +115,13 @@ describe("a synced note whose folder becomes ignored (REQ-3.0.8)", () => {
     const { linked, project } = await link({});
     await files(linked.docs, { "drafts/a.md": "a\n" });
     await syncOnce(project);
-    expect(await read(path.join(linked.vaultFolder, "drafts", "a.md"))).toBe("a\n");
+    expect(await read(path.join(linked.vaultDocs, "drafts", "a.md"))).toBe("a\n");
 
     await writeFile(path.join(linked.repo, ".gitignore"), "drafts/\n");
-    await writeFile(path.join(linked.vaultFolder, "drafts", "a.md"), "a, edited in the vault\n");
+    await writeFile(path.join(linked.vaultDocs, "drafts", "a.md"), "a, edited in the vault\n");
     await syncOnce(project);
     expect(await read(path.join(linked.docs, "drafts", "a.md"))).toBe("a\n");
-    expect(await read(path.join(linked.vaultFolder, "drafts", "a.md"))).toBe(
+    expect(await read(path.join(linked.vaultDocs, "drafts", "a.md"))).toBe(
       "a, edited in the vault\n",
     );
   });
