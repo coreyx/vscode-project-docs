@@ -2,7 +2,7 @@
  * The sync controller (design.md `SyncController`): connects file watchers on both folders to the
  * core's scheduler, which holds the lock and runs passes. One controller runs per linked repo.
  */
-import { realpathSync } from "node:fs";
+import { realpathSync, watch } from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
@@ -86,11 +86,15 @@ export class SyncController implements vscode.Disposable {
   }
 
   /**
-   * The repo is in the workspace, where VS Code's own watcher is reliable. It watches the repo root,
-   * and only changes in the link's scope start a pass, so editing source code doesn't (REQ-20.0.2).
+   * The repo is in the workspace, where VS Code's own watcher is reliable. It watches what the link
+   * syncs (design decision 21): the docs folder, recursively, and the Markdown files at the top of
+   * the repo root, where the root files are. The rest of the repo isn't watched, so editing source
+   * code doesn't start a pass (REQ-20.0.2), and a large repo costs no more watches than its docs.
+   * Only changes in the scope start a pass.
    */
   private watchRepo(project: Project): void {
     const root = project.repo.root;
+    const docsFolder = project.committed.docsFolder.split("/").filter(Boolean);
     // VS Code reports a change by the file's real path, which can differ in form from the repo
     // root it was given, such as a Windows 8.3 short name (C:\Users\RUNNER~1\...). The relative
     // path is taken from whichever form contains the file, and a change it can't place still
@@ -105,7 +109,7 @@ export class SyncController implements vscode.Disposable {
       }
     };
     const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(vscode.Uri.file(root), "**/*"),
+      new vscode.RelativePattern(vscode.Uri.file(path.join(root, ...docsFolder)), "**/*"),
     );
     this.disposables.push(
       watcher,
@@ -113,6 +117,20 @@ export class SyncController implements vscode.Disposable {
       watcher.onDidChange(notify),
       watcher.onDidDelete(notify),
     );
+    // A repo-root link's watcher above covers the root files. Otherwise they get Node's watcher on
+    // the root folder alone: a second VS Code watcher on the docs folder's parent stops the one on
+    // the docs folder reporting changes, as VS Code merges overlapping watch requests.
+    if (docsFolder.length > 0) {
+      try {
+        const rootWatcher = watch(root, (_event, name) => {
+          if (name === null || project.scope.includes(name.toString())) this.scheduler?.notify();
+        });
+        rootWatcher.on("error", () => undefined);
+        this.disposables.push({ dispose: () => rootWatcher.close() });
+      } catch {
+        // The periodic rescan still finds changes to the root files.
+      }
+    }
   }
 
   /**

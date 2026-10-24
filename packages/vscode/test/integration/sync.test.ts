@@ -88,6 +88,21 @@ describe("syncing while VS Code is open", function () {
     assert.ok(took < 2_000, `took ${took} ms`);
   });
 
+  it("brings a root file's edit in the repo to the vault, and back, within 2 seconds (REQ-22)", async () => {
+    await writeFile(path.join(repo, "README.md"), "# Readme, from VS Code\n");
+    const took = await eventually(
+      fileIs(path.join(vaultFolder, "README.md"), "# Readme, from VS Code\n"),
+      5_000,
+    );
+    assert.ok(took < 2_000, `took ${took} ms`);
+    await writeFile(path.join(vaultFolder, "README.md"), "# Readme, from Obsidian\n");
+    const back = await eventually(
+      fileIs(path.join(repo, "README.md"), "# Readme, from Obsidian\n"),
+      5_000,
+    );
+    assert.ok(back < 2_000, `took ${back} ms`);
+  });
+
   it("stops syncing while paused, and catches up on resume (REQ-17.0.5)", async () => {
     await vscode.commands.executeCommand("projectDocs.pause");
     assert.equal(docsApi.controller()?.state.state, "paused");
