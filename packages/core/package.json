@@ -1,6 +1,6 @@
 {
   "name": "@specdevship/project-docs-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sync engine, rules, link formats and PRIVATE.md decoder shared by Project Docs' VS Code extension, CLI and Obsidian plugin.",
   "keywords": [
     "obsidian",
