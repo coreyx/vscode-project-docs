@@ -3,7 +3,7 @@
  * reliably report, such as a vault outside the workspace. Events for the engine's own metadata and
  * temporary files are dropped, so the engine's writes can't set off a pass loop.
  */
-import { watch, type FSWatcher } from "node:fs";
+import { realpathSync, watch, type FSWatcher } from "node:fs";
 
 /**
  * True for paths that never need a sync pass: engine metadata, Obsidian config and trash, temp
@@ -35,8 +35,17 @@ export function startNativeWatch(
   relevant: (relativePath: string) => boolean = () => true,
 ): (() => void) | null {
   let watcher: FSWatcher;
+  // Watched by its real path: given a Windows 8.3 short name (C:\Users\RUNNER~1\...), recursive
+  // watching reports names relative to the long form but cut by the short form's length, such as
+  // "ult\Projects\..." for "Vault\Projects\...", which the scope check would then drop.
+  let target = root;
   try {
-    watcher = watch(root, { recursive: true }, (_event, filename) => {
+    target = realpathSync.native(root);
+  } catch {
+    // Watch it as given; a missing folder fails just below.
+  }
+  try {
+    watcher = watch(target, { recursive: true }, (_event, filename) => {
       // Some platforms don't say which file changed; treat that as relevant.
       if (filename === null) onChange();
       else if (!isIgnoredChange(filename.toString()) && relevant(filename.toString())) onChange();

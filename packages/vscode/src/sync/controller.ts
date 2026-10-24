@@ -2,6 +2,7 @@
  * The sync controller (design.md `SyncController`): connects file watchers on both folders to the
  * core's scheduler, which holds the lock and runs passes. One controller runs per linked repo.
  */
+import { realpathSync } from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
@@ -21,6 +22,15 @@ import { needsPolling } from "./watch-mode.js";
 /** Moves a repo-side file to the operating system's trash, through VS Code (REQ-6.0.3). */
 export async function vscodeTrash(absolutePath: string): Promise<void> {
   await vscode.workspace.fs.delete(vscode.Uri.file(absolutePath), { useTrash: true });
+}
+
+/** The folder's real path, in its long form on Windows, or the path as given if it can't be read. */
+function realRoot(folder: string): string {
+  try {
+    return realpathSync.native(folder);
+  } catch {
+    return folder;
+  }
 }
 
 /**
@@ -81,9 +91,18 @@ export class SyncController implements vscode.Disposable {
    */
   private watchRepo(project: Project): void {
     const root = project.repo.root;
+    // VS Code reports a change by the file's real path, which can differ in form from the repo
+    // root it was given, such as a Windows 8.3 short name (C:\Users\RUNNER~1\...). The relative
+    // path is taken from whichever form contains the file, and a change it can't place still
+    // starts a pass: an extra pass costs little, and a missed change is a sync failure.
+    const roots = [root, realRoot(root)];
     const notify = (uri: vscode.Uri) => {
-      const relative = path.relative(root, uri.fsPath);
-      if (!isIgnoredChange(relative) && inScope(project, relative)) this.scheduler?.notify();
+      const relative = roots
+        .map((r) => path.relative(r, uri.fsPath))
+        .find((rel) => !rel.startsWith("..") && !path.isAbsolute(rel));
+      if (relative === undefined || (!isIgnoredChange(relative) && inScope(project, relative))) {
+        this.scheduler?.notify();
+      }
     };
     const watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(vscode.Uri.file(root), "**/*"),
