@@ -6,6 +6,7 @@ import { realpathSync, watch } from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
+  ENGINE_INPUTS,
   SyncScheduler,
   detectWsl,
   isExcludedFolder,
@@ -146,7 +147,9 @@ export class SyncController implements vscode.Disposable {
           inScope(project, relative),
         );
     const skipFolder = (key: string) => isExcludedFolder(key) || !project.scope.mayContain(key);
-    const stop = native ?? startPolling(project.vault, { skipFolder, onChange: notify });
+    const stop =
+      native ??
+      startPolling(project.vault, { skipFolder, extraFiles: ENGINE_INPUTS, onChange: notify });
     this.disposables.push({ dispose: stop });
   }
 

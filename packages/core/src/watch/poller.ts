@@ -8,14 +8,22 @@ import type { SideFs } from "../sidefs/index.js";
 /** Default polling interval: changes are noticed within 5 s, well inside REQ-4.0.2's 10 s. */
 export const POLL_INTERVAL_MS = 5_000;
 
-/** Takes one listing of a side: key -> "size:mtime". */
+/**
+ * Takes one listing of a side: key -> "size:mtime". `extraFiles` are in folders the listing skips,
+ * so they're read instead; they're small metadata files, and a missing one is left out.
+ */
 async function fingerprint(
   fs: SideFs,
   skipFolder: (key: string) => boolean,
+  extraFiles: readonly string[],
 ): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   for await (const entry of fs.list(skipFolder))
     result.set(entry.key, `${entry.size}:${entry.mtimeMs}`);
+  for (const key of extraFiles) {
+    if (!(await fs.exists(key))) continue;
+    result.set(key, `content:${Buffer.from(await fs.read(key)).toString("base64")}`);
+  }
   return result;
 }
 
@@ -34,6 +42,8 @@ export function diffListings(
 export interface PollOptions {
   readonly intervalMs?: number;
   readonly skipFolder?: (key: string) => boolean;
+  /** Files to check as well although `skipFolder` skips their folder, such as `ENGINE_INPUTS`. */
+  readonly extraFiles?: readonly string[];
   /** Called with the changed keys whenever a poll finds any. */
   readonly onChange: (keys: string[]) => void;
   readonly onError?: (error: unknown) => void;
@@ -52,7 +62,7 @@ export function startPolling(fs: SideFs, options: PollOptions): () => void {
 
   const poll = async () => {
     try {
-      const current = await fingerprint(fs, skip);
+      const current = await fingerprint(fs, skip, options.extraFiles ?? []);
       if (previous) {
         const changed = diffListings(previous, current);
         if (changed.length > 0) options.onChange(changed);

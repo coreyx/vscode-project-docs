@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { isIgnoredChange, startNativeWatch } from "../../src/watch/index.js";
+import { isEngineInput, isIgnoredChange, startNativeWatch } from "../../src/watch/index.js";
 
 let root: string;
 beforeEach(async () => {
@@ -25,6 +25,13 @@ describe("isIgnoredChange", () => {
     ]) {
       expect(isIgnoredChange(p)).toBe(true);
     }
+  });
+
+  it("knows the plugin's choice file as an engine input, and nothing else in the metadata", () => {
+    expect(isEngineInput(".project-docs/ignored-choices.json")).toBe(true);
+    expect(isEngineInput(".project-docs\\ignored-choices.json")).toBe(true);
+    expect(isEngineInput(".project-docs/status.json")).toBe(false);
+    expect(isEngineInput("docs/.project-docs/ignored-choices.json")).toBe(false);
   });
 
   it("keeps ordinary notes", () => {
@@ -57,6 +64,26 @@ describe("startNativeWatch", () => {
     expect(
       await changesFrom(() => writeFile(path.join(root, "deep", "er", "note.md"), "x")),
     ).toBeGreaterThan(0);
+  });
+
+  it("reports the plugin's ignored-note choices, whatever the scope says", async () => {
+    await mkdir(path.join(root, ".project-docs"));
+    let count = 0;
+    const stop = startNativeWatch(
+      root,
+      () => count++,
+      undefined,
+      () => false,
+    );
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      count = 0;
+      await writeFile(path.join(root, ".project-docs", "ignored-choices.json"), "{}");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(count).toBeGreaterThan(0);
+    } finally {
+      stop?.();
+    }
   });
 
   it("stays quiet about the engine's own status file", async () => {

@@ -95,6 +95,33 @@ describe("startPolling (REQ-4.0.2)", () => {
     }
   });
 
+  it("checks extra files in folders it skips, such as the plugin's choices", async () => {
+    const fs = createNodeSideFs({
+      side: "vault",
+      root: linked.vaultFolder,
+      isWindowsFs: false,
+      caseInsensitive: false,
+      trash: async () => {},
+    });
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(path.join(linked.vaultFolder, ".project-docs"), { recursive: true });
+    const seen: string[][] = [];
+    const stop = startPolling(fs, {
+      intervalMs: 50,
+      skipFolder: (key) => key === ".project-docs",
+      extraFiles: [".project-docs/ignored-choices.json"],
+      onChange: (keys) => seen.push(keys),
+    });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      await writeFile(path.join(linked.vaultFolder, ".project-docs", "ignored-choices.json"), "{}");
+      await eventually(async () => seen.length > 0, 2_000);
+      expect(seen[0]).toEqual([".project-docs/ignored-choices.json"]);
+    } finally {
+      stop();
+    }
+  });
+
   const windowsDir = process.env["PROJECT_DOCS_TEST_WINDOWS_DIR"];
   it.runIf(windowsDir)(
     "notices a change on a Windows drive from WSL within 10 seconds (REQ-4.2)",

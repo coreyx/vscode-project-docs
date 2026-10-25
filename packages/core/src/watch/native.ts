@@ -24,9 +24,23 @@ export function isIgnoredChange(relativePath: string): boolean {
 }
 
 /**
- * Watches `root` recursively and calls `onChange` for relevant changes: those `isIgnoredChange`
- * keeps, and that `relevant` accepts, such as those in the link's scope (design decision 21). Returns a function that
- * stops watching, or null when recursive watching isn't available here, so the caller can poll.
+ * Files in the vault folder's metadata that the Obsidian plugin writes for the engine to act on.
+ * The rest of `.project-docs` never needs a pass, but a change to one of these does: without it,
+ * a choice made in Obsidian, such as Keep syncing it, waits for the next rescan. The engine only
+ * reads them, so watching them can't set off a pass loop.
+ */
+export const ENGINE_INPUTS: readonly string[] = [".project-docs/ignored-choices.json"];
+
+/** True for a path, relative to the vault folder, that is one of the `ENGINE_INPUTS`. */
+export function isEngineInput(relativePath: string): boolean {
+  return ENGINE_INPUTS.includes(relativePath.replace(/\\/g, "/"));
+}
+
+/**
+ * Watches `root` recursively and calls `onChange` for relevant changes: the `ENGINE_INPUTS`, and
+ * others that `isIgnoredChange` keeps and `relevant` accepts, such as those in the link's scope
+ * (design decision 21). Returns a function that stops watching, or null when recursive watching
+ * isn't available here, so the caller can poll.
  */
 export function startNativeWatch(
   root: string,
@@ -48,6 +62,7 @@ export function startNativeWatch(
     watcher = watch(target, { recursive: true }, (_event, filename) => {
       // Some platforms don't say which file changed; treat that as relevant.
       if (filename === null) onChange();
+      else if (isEngineInput(filename.toString())) onChange();
       else if (!isIgnoredChange(filename.toString()) && relevant(filename.toString())) onChange();
     });
   } catch {
