@@ -135,11 +135,14 @@ export class SyncScheduler {
 
   private async begin(): Promise<void> {
     this.rescan = this.timers.setInterval(() => this.notify(), this.options.rescanMs ?? RESCAN_MS);
+    await this.syncNow();
+    // Armed once the first pass is done: armed before it, a first pass slower than the settle time
+    // would swallow the early rescan, and a change made just after it would wait for the next one.
+    if (this.disposed || !this.lock) return;
     this.settle = this.timers.setTimeout(() => {
       this.settle = null;
       this.notify();
     }, this.options.settleMs ?? SETTLE_MS);
-    await this.syncNow();
   }
 
   /** A file changed somewhere: run a pass once things are quiet for the debounce period. */
